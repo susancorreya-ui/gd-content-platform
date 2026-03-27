@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const PUBLIC_PATHS = ['/login', '/api/auth'];
-
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Allow static assets through
@@ -23,7 +21,6 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get('gd-session')?.value;
   const secret = new TextEncoder().encode(process.env.AUTH_SECRET!);
 
-  // Validate token helper
   const isValidToken = async (t: string) => {
     try {
       await jwtVerify(t, secret);
