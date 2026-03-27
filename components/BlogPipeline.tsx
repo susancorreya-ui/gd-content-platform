@@ -175,7 +175,7 @@ function SourcesAccordion({ sources, sourceOverrides }: {
         {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
       </button>
       {open && (
-        <div className="divide-y" style={{ borderTop: '1px solid var(--border)', divideColor: 'var(--border)' }}>
+        <div className="divide-y" style={{ borderTop: '1px solid var(--border)' }}>
           {sources.map(s => {
             const rec = sourceOverrides[s.index] ?? s.recommendation;
             const isIncluded = rec === 'INCLUDE';
