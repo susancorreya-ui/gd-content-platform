@@ -1,0 +1,314 @@
+import { NextResponse } from 'next/server';
+
+const CUTOFF_DATE = new Date('2026-01-01T00:00:00.000Z').getTime();
+
+export interface CompanyDevelopment {
+  id: string;
+  title: string;
+  url: string;
+  description: string;
+  source: string;
+  sourceDomain: string;
+  publishedAt: string;
+  pillar: string;
+  type: 'news' | 'pr' | 'earnings' | 'social';
+}
+
+export interface CompanyUpdate {
+  company: string;
+  isPublic: boolean;
+  ticker?: string;
+  revenue: string;
+  developments: CompanyDevelopment[];
+}
+
+// ─── Top 20 Grocers — specific pages to parse ─────────────────────────────────
+// ownedDomains: their newsroom, IR, corporate pages (parsed directly)
+// For public companies, irDomain is their investor relations page
+
+export const TOP_20_GROCERS: {
+  name: string;
+  revenue: string;
+  isPublic: boolean;
+  ticker?: string;
+  ownedDomains: string[];
+  irDomain?: string;
+}[] = [
+  {
+    name: 'Walmart',
+    revenue: '$559B',
+    isPublic: true,
+    ticker: 'WMT',
+    ownedDomains: ['corporate.walmart.com'],
+    irDomain: 'stock.walmart.com',
+  },
+  {
+    name: 'Kroger',
+    revenue: '$133B',
+    isPublic: true,
+    ticker: 'KR',
+    ownedDomains: ['ir.kroger.com', 'thekrogerco.com'],
+    irDomain: 'ir.kroger.com',
+  },
+  {
+    name: 'Costco',
+    revenue: '$126B',
+    isPublic: true,
+    ticker: 'COST',
+    ownedDomains: ['investor.costco.com', 'costco.com'],
+    irDomain: 'investor.costco.com',
+  },
+  {
+    name: 'Albertsons',
+    revenue: '$70B',
+    isPublic: true,
+    ticker: 'ACI',
+    ownedDomains: ['albertsonscompanies.com', 'investors.albertsonscompanies.com'],
+    irDomain: 'investors.albertsonscompanies.com',
+  },
+  {
+    name: 'Ahold Delhaize',
+    revenue: '$45B',
+    isPublic: true,
+    ticker: 'AD',
+    ownedDomains: ['aholddelhaize.com'],
+    irDomain: 'aholddelhaize.com',
+  },
+  {
+    name: 'Target',
+    revenue: '$44B',
+    isPublic: true,
+    ticker: 'TGT',
+    ownedDomains: ['corporate.target.com', 'investors.target.com'],
+    irDomain: 'investors.target.com',
+  },
+  {
+    name: 'Publix',
+    revenue: '$34B',
+    isPublic: false,
+    ownedDomains: ['corporate.publix.com'],
+  },
+  {
+    name: 'H-E-B',
+    revenue: '$30B',
+    isPublic: false,
+    ownedDomains: ['newsroom.heb.com', 'heb.com'],
+  },
+  {
+    name: 'Meijer',
+    revenue: '$19B',
+    isPublic: false,
+    ownedDomains: ['meijer.com'],
+  },
+  {
+    name: 'Aldi',
+    revenue: '$18B',
+    isPublic: false,
+    ownedDomains: ['corporate.aldi.us', 'aldi.us'],
+  },
+  {
+    name: 'Whole Foods',
+    revenue: '$17B',
+    isPublic: false,
+    ownedDomains: ['media.wholefoodsmarket.com', 'wholefoodsmarket.com'],
+  },
+  {
+    name: "Trader Joe's",
+    revenue: '$16B',
+    isPublic: false,
+    ownedDomains: ['traderjoes.com'],
+  },
+  {
+    name: 'Giant Eagle',
+    revenue: '$14B',
+    isPublic: false,
+    ownedDomains: ['gianteagle.com'],
+  },
+  {
+    name: 'Hy-Vee',
+    revenue: '$13B',
+    isPublic: false,
+    ownedDomains: ['hy-vee.com'],
+  },
+  {
+    name: 'Winn-Dixie',
+    revenue: '$12B',
+    isPublic: false,
+    ownedDomains: ['segrocers.com', 'winndixie.com'],
+  },
+  {
+    name: 'Food Lion',
+    revenue: '$11B',
+    isPublic: false,
+    ownedDomains: ['foodlion.com'],
+  },
+  {
+    name: 'Grocery Outlet',
+    revenue: '$5B',
+    isPublic: true,
+    ticker: 'GO',
+    ownedDomains: ['investors.groceryoutlet.com', 'groceryoutlet.com'],
+    irDomain: 'investors.groceryoutlet.com',
+  },
+  {
+    name: 'Weis Markets',
+    revenue: '$4B',
+    isPublic: true,
+    ticker: 'WMK',
+    ownedDomains: ['weismarkets.com'],
+    irDomain: 'weismarkets.com',
+  },
+  {
+    name: 'Stop & Shop',
+    revenue: '$1.1B',
+    isPublic: false,
+    ownedDomains: ['stopandshop.com'],
+  },
+  {
+    name: 'Hannaford',
+    revenue: '$2B',
+    isPublic: false,
+    ownedDomains: ['hannaford.com'],
+  },
+];
+
+// ─── Pillar keyword categorisation ───────────────────────────────────────────
+
+const PILLAR_KEYWORDS: Record<string, string[]> = {
+  'Artificial Intelligence': ['artificial intelligence', ' ai ', ' ai,', ' ai.', 'machine learning', 'generative', 'predictive', 'algorithm', 'neural', 'llm', 'genai'],
+  'Automation':              ['automation', 'automated', 'robotics', 'robot', 'autonomous', 'dark store', 'micro-fulfillment', 'fulfillment center', 'warehouse tech'],
+  'Digital Commerce':        ['ecommerce', 'e-commerce', 'online grocery', 'digital commerce', 'delivery', 'pickup', 'bopis', 'omnichannel', 'digital sales', 'online order', 'app'],
+  'Personalization':         ['personalization', 'personalised', 'personalized', 'loyalty', 'rewards', 'recommendation', 'customer experience', 'shopper data'],
+  'Retail Media':            ['retail media', 'media network', 'advertising', 'sponsored', 'cpg', 'brand advertising', 'ad spend', 'programmatic'],
+  'Supply Chain':            ['supply chain', 'logistics', 'distribution', 'inventory', 'warehouse', 'sourcing', 'procurement', 'out-of-stock'],
+};
+
+function keywordCategorize(title: string, description: string): string {
+  const text = (title + ' ' + description).toLowerCase();
+  const scores: Record<string, number> = {};
+  for (const [pillar, keywords] of Object.entries(PILLAR_KEYWORDS)) {
+    scores[pillar] = keywords.filter(kw => text.includes(kw)).length;
+  }
+  const best = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
+  return best[1] >= 1 ? best[0] : 'Digital Commerce';
+}
+
+function detectType(url: string, title: string): 'news' | 'pr' | 'earnings' | 'social' {
+  if (/linkedin\.com/i.test(url)) return 'social';
+  if (/twitter\.com|x\.com/i.test(url)) return 'social';
+  if (/prnewswire|businesswire|globenewswire|accesswire/i.test(url)) return 'pr';
+  if (/\/ir\/|investor|earnings|quarterly|annual.report/i.test(url)) return 'earnings';
+  if (/earnings|quarterly results|investor/i.test(title.toLowerCase())) return 'earnings';
+  return 'news';
+}
+
+// ─── Two searches per company ─────────────────────────────────────────────────
+// 1. Owned media: search within their own newsroom + IR pages
+// 2. External tech news: credible press coverage of this company
+
+async function searchCompany(
+  company: typeof TOP_20_GROCERS[0],
+  apiKey: string
+): Promise<CompanyDevelopment[]> {
+  const allDomains = [
+    ...company.ownedDomains,
+    ...(company.irDomain ? [company.irDomain] : []),
+  ];
+
+  const searches = await Promise.allSettled([
+    // Search 1 — their own pages (newsroom, IR, corporate blog)
+    fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query: `${company.name} technology digital AI retail media automation personalization 2026`,
+        search_depth: 'basic',
+        max_results: 4,
+        days: 90,
+        include_domains: allDomains,
+      }),
+    }).then(r => r.json()),
+
+    // Search 2 — external credible press coverage
+    fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query: `"${company.name}" grocery technology digital AI retail media 2026`,
+        search_depth: 'basic',
+        max_results: 4,
+        days: 90,
+        include_domains: [
+          'reuters.com', 'bloomberg.com', 'wsj.com', 'cnbc.com',
+          'ft.com', 'forbes.com', 'businesswire.com', 'prnewswire.com',
+          'apnews.com', 'mckinsey.com', 'deloitte.com',
+        ],
+      }),
+    }).then(r => r.json()),
+  ]);
+
+  const results: { title: string; url: string; content?: string; published_date?: string }[] = [];
+  for (const s of searches) {
+    if (s.status === 'fulfilled' && s.value?.results) {
+      results.push(...s.value.results);
+    }
+  }
+
+  // Deduplicate by URL and enforce 2026 cutoff
+  const seen = new Set<string>();
+  return results
+    .filter(r => {
+      if (!r.url || !r.title || seen.has(r.url)) return false;
+      if (r.published_date) {
+        const ts = new Date(r.published_date).getTime();
+        if (!isNaN(ts) && ts < CUTOFF_DATE) return false; // confirmed old — drop
+      }
+      seen.add(r.url);
+      return true;
+    })
+    .map((r, i) => {
+      let sourceDomain = '';
+      try { sourceDomain = new URL(r.url).hostname.replace('www.', ''); } catch { /* */ }
+      return {
+        id: `${company.name}-${Date.now()}-${i}`,
+        title: r.title,
+        url: r.url,
+        description: (r.content || '').slice(0, 220),
+        source: sourceDomain,
+        sourceDomain,
+        publishedAt: r.published_date || new Date().toISOString(),
+        pillar: keywordCategorize(r.title, r.content || ''),
+        type: detectType(r.url, r.title),
+      } as CompanyDevelopment;
+    });
+}
+
+// ─── Route ────────────────────────────────────────────────────────────────────
+
+export async function POST() {
+  const apiKey = process.env.TAVILY_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: 'TAVILY_API_KEY not configured' }, { status: 500 });
+  }
+
+  const results = await Promise.allSettled(
+    TOP_20_GROCERS.map(company => searchCompany(company, apiKey))
+  );
+
+  const companies: CompanyUpdate[] = TOP_20_GROCERS.map((company, i) => ({
+    company: company.name,
+    isPublic: company.isPublic,
+    ticker: company.ticker,
+    revenue: company.revenue,
+    developments: results[i].status === 'fulfilled'
+      ? (results[i] as PromiseFulfilledResult<CompanyDevelopment[]>).value
+      : [],
+  }));
+
+  return NextResponse.json({
+    companies,
+    fetchedAt: new Date().toISOString(),
+  });
+}
