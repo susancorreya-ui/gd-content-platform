@@ -70,15 +70,9 @@ export function useDailySummary(): UseDailySummaryReturn {
     const allEntries = loadArchive();
     const todayEntry = allEntries.find(e => e.date === todayKey) || null;
     const pastEntries = allEntries.filter(e => e.date !== todayKey);
-
+    setToday(todayEntry);
     setArchive(pastEntries);
-
-    if (todayEntry) {
-      setToday(todayEntry);
-    } else {
-      generate();
-    }
-  }, [generate]);
+  }, []);
 
   return { today, archive, isGenerating, error, regenerate: generate };
 }

@@ -3,14 +3,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FeedItem } from '@/app/api/research-feed/route';
 
-const CACHE_KEY = 'gd_research_feed_v3';
-const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_KEY = 'gd_research_feed_v5';
+const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours
 const CUTOFF_DATE = new Date('2026-01-01T00:00:00.000Z').getTime();
 
 function filterRecent(items: FeedItem[]): FeedItem[] {
   return items.filter(item => {
+    if (!item.publishedAt) return true; // no date — keep it, don't assume it's old
     const age = new Date(item.publishedAt).getTime();
-    return !isNaN(age) && age >= CUTOFF_DATE;
+    return isNaN(age) || age >= CUTOFF_DATE; // keep undated or within range
   });
 }
 

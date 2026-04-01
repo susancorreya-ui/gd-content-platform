@@ -7,7 +7,8 @@ export type ContentType =
   | 'social-twitter'
   | 'email'
   | 'video-script'
-  | 'email-sequence';
+  | 'email-sequence'
+  | 'daily-summary';
 
 export type BlogType =
   | 'standard'
@@ -39,6 +40,8 @@ export interface ResearchDoc {
   uploadedAt: Date;
 }
 
+export type LibraryItemStatus = 'saved' | 'scheduled' | 'posted';
+
 export interface LibraryItem {
   id: string;
   contentType: ContentType;
@@ -46,6 +49,7 @@ export interface LibraryItem {
   output: string;
   metadata: Record<string, string>;
   createdAt: string;
+  status: LibraryItemStatus;
 }
 
 export type SocialPlatform = 'linkedin' | 'twitter';

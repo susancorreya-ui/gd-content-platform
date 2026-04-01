@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { ContentType, ResearchDoc, BlogType, EmailSubtype, LibraryItem } from '@/types';
 import OutputPanel from './OutputPanel';
 import BlogPipeline from './BlogPipeline';
-import { Sparkles, ChevronDown, X, Link, Loader2, BookOpen, Zap, GitBranch } from 'lucide-react';
+import GrocerPerformancePipeline from './GrocerPerformancePipeline';
+import { Sparkles, ChevronDown, X, Link, Loader2, BookOpen } from 'lucide-react';
 
 // ─── Blog type options ───────────────────────────────────────────────────────
 
@@ -139,7 +140,6 @@ interface ContentCreatorProps {
 
 export default function ContentCreator({ contentType, researchDocs, onSaveToLibrary, initialTopic, initialPillar }: ContentCreatorProps) {
   const config = CONTENT_CONFIG[contentType];
-  const [blogMode, setBlogMode] = useState<'quick' | 'pipeline'>(initialTopic ? 'pipeline' : 'quick');
 
   // All hooks must be declared before any conditional returns
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -159,36 +159,22 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
-  // Render pipeline mode for blog
-  if (contentType === 'blog' && blogMode === 'pipeline') {
+  // Blog always uses the full pipeline
+  if (contentType === 'blog') {
     return (
-      <div className="flex flex-col h-full overflow-hidden">
-        <div className="flex items-center gap-2 px-5 py-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-          <button
-            onClick={() => setBlogMode('quick')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-            style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-          >
-            <Zap size={12} />Quick Mode
-          </button>
-          <button
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-            style={{ background: 'rgba(0,170,80,0.1)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
-          >
-            <GitBranch size={12} />Full Pipeline
-          </button>
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <BlogPipeline
-            researchDocs={researchDocs}
-            onSaveToLibrary={onSaveToLibrary}
-            initialTopic={initialTopic}
-            initialPillar={initialPillar}
-            autoStart={!!initialTopic}
-          />
-        </div>
-      </div>
+      <BlogPipeline
+        researchDocs={researchDocs}
+        onSaveToLibrary={onSaveToLibrary}
+        initialTopic={initialTopic}
+        initialPillar={initialPillar}
+        autoStart={!!initialTopic}
+      />
     );
+  }
+
+  // Grocer Performance uses its own dedicated pipeline
+  if (contentType === 'grocer-performance') {
+    return <GrocerPerformancePipeline onSaveToLibrary={onSaveToLibrary} />;
   }
 
   const selectedDoc = researchDocs.find((d) => d.id === selectedDocId);
@@ -285,25 +271,6 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* ── Blog mode toggle ── */}
-      {contentType === 'blog' && (
-        <div className="flex items-center gap-2 px-5 py-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-          <button
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-            style={{ background: 'rgba(0,170,80,0.1)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
-          >
-            <Zap size={12} />Quick Mode
-          </button>
-          <button
-            onClick={() => setBlogMode('pipeline')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-            style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-          >
-            <GitBranch size={12} />Full Pipeline
-          </button>
-          <span className="text-xs ml-1" style={{ color: 'var(--text-secondary)' }}>— 7 agents: research → brief → write → edit → distribute</span>
-        </div>
-      )}
 
       <div className="flex flex-1 overflow-hidden">
       {/* ── Left: Input panel ── */}

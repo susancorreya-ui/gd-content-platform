@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Sparkles, BookOpen, CheckCircle, Circle, Edit3, RefreshCw,
   ExternalLink, AlertCircle, ChevronDown, ChevronUp, Send,
+  Trash2, CalendarClock,
 } from 'lucide-react';
 import { BlogType, LibraryItem } from '@/types';
 import OutputPanel from './OutputPanel';
@@ -290,6 +291,7 @@ export default function BlogPipeline({ researchDocs, onSaveToLibrary, initialTop
   const [blogType, setBlogType] = useState<BlogType>('standard');
   const [selectedDocId, setSelectedDocId] = useState('');
   const [namedAuthor, setNamedAuthor] = useState('');
+  const [supportingLinks, setSupportingLinks] = useState('');
 
   // ── Pipeline state ────────────────────────────────────────────────────────
   const [stage, setStage] = useState<Stage>('idle');
@@ -316,6 +318,9 @@ export default function BlogPipeline({ researchDocs, onSaveToLibrary, initialTop
 
   // ── Misc ──────────────────────────────────────────────────────────────────
   const [saved, setSaved] = useState(false);
+  const [scheduled, setScheduled] = useState(false);
+  const [webflowLoading, setWebflowLoading] = useState(false);
+  const [webflowDone, setWebflowDone] = useState(false);
 
   const selectedDoc = researchDocs.find(d => d.id === selectedDocId);
 
@@ -382,7 +387,7 @@ export default function BlogPipeline({ researchDocs, onSaveToLibrary, initialTop
 
       // Research Agents (1–3)
       setStage('researching');
-      const data = await callAgent('/api/pipeline/research', { topic, pillar });
+      const data = await callAgent('/api/pipeline/research', { topic, pillar, supportingLinks });
       setSources(data.reviewedSources || []);
       setSourceOverrides({});
       setResearchSummary(data.summary || '');
@@ -548,6 +553,56 @@ export default function BlogPipeline({ researchDocs, onSaveToLibrary, initialTop
     setTimeout(() => setSaved(false), 3000);
   }
 
+  function handleSchedule() {
+    if (!draft) return;
+    onSaveToLibrary({
+      contentType: 'blog',
+      title: (selectedHeadline || topic).slice(0, 80) || 'Pipeline Article',
+      output: draft,
+      metadata: { blogType },
+      status: 'scheduled',
+    });
+    // Also save to scheduler
+    const existing = JSON.parse(localStorage.getItem('gd_scheduler_posts') || '[]');
+    existing.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+      title: selectedHeadline || topic,
+      content: draft.slice(0, 500),
+      scheduledDate: '',
+      scheduledTime: '09:00',
+      status: 'scheduled',
+      charCount: draft.length,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      source: 'pipeline',
+    });
+    localStorage.setItem('gd_scheduler_posts', JSON.stringify(existing));
+    setScheduled(true);
+  }
+
+  async function handleWebflow() {
+    if (!draft || webflowLoading) return;
+    setWebflowLoading(true);
+    try {
+      await fetch('/api/publish/webflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: selectedHeadline || topic,
+          body: draft,
+          pillar,
+          blogType,
+          author: namedAuthor,
+        }),
+      });
+      setWebflowDone(true);
+    } catch {
+      // fail silently — show a toast in a real app
+    } finally {
+      setWebflowLoading(false);
+    }
+  }
+
   function resetPipeline() {
     setStage('idle');
     setSources([]);
@@ -562,6 +617,9 @@ export default function BlogPipeline({ researchDocs, onSaveToLibrary, initialTop
     setSeoReport('');
     setEditNotes('');
     setError('');
+    setScheduled(false);
+    setWebflowDone(false);
+    setWebflowLoading(false);
   }
 
   // ── Derived: is a loading stage active? ──────────────────────────────────
@@ -589,26 +647,8 @@ export default function BlogPipeline({ researchDocs, onSaveToLibrary, initialTop
           </p>
         </div>
 
-        {/* Agent map — scrollable */}
+        {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 pb-2">
-
-          {/* Agent map */}
-          <div className="py-3 px-3 rounded-xl space-y-1.5 mb-4"
-            style={{ background: 'var(--background)', border: '1px solid var(--border)' }}>
-            {AGENT_CONFIG.map((agent, i) => (
-              <div key={agent.label}>
-                {/* Group dividers */}
-                {(i === 1 || i === 4 || i === 5 || i === 14) && (
-                  <div className="my-1.5 border-t" style={{ borderColor: 'var(--border)' }} />
-                )}
-                <AgentStep
-                  number={i + 1}
-                  label={agent.label}
-                  status={agentStatus(agent)}
-                />
-              </div>
-            ))}
-          </div>
 
           {/* Inputs — only shown at idle */}
           {stage === 'idle' && (
@@ -705,8 +745,41 @@ export default function BlogPipeline({ researchDocs, onSaveToLibrary, initialTop
                   </select>
                 </div>
               )}
+
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
+                  Supporting links <span className="font-normal" style={{ color: 'var(--text-secondary)' }}>(optional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  className="w-full text-sm rounded-lg px-3 py-2.5 resize-none outline-none"
+                  style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  placeholder={"Paste URLs to articles, studies, or data sources you want the pipeline to reference:\nhttps://...\nhttps://..."}
+                  value={supportingLinks}
+                  onChange={e => setSupportingLinks(e.target.value)}
+                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
+                  onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                />
+              </div>
             </div>
           )}
+
+          {/* Agent map — always visible, below inputs */}
+          <div className="py-3 px-3 rounded-xl space-y-1.5 mb-4 mt-4"
+            style={{ background: 'var(--background)', border: '1px solid var(--border)' }}>
+            {AGENT_CONFIG.map((agent, i) => (
+              <div key={agent.label}>
+                {(i === 1 || i === 4 || i === 5 || i === 14) && (
+                  <div className="my-1.5 border-t" style={{ borderColor: 'var(--border)' }} />
+                )}
+                <AgentStep
+                  number={i + 1}
+                  label={agent.label}
+                  status={agentStatus(agent)}
+                />
+              </div>
+            ))}
+          </div>
 
           {/* Sources — persistent once fetched, visible throughout pipeline */}
           {sources.length > 0 && stage !== 'idle' && stage !== 'sourcing' && stage !== 'researching' && (
@@ -798,15 +871,37 @@ export default function BlogPipeline({ researchDocs, onSaveToLibrary, initialTop
                 style={{ background: 'rgba(0,170,80,0.1)', color: 'var(--accent)' }}>
                 ✓ Published — social posts saved to Scheduler
               </div>
+              {/* Save */}
               <button onClick={handleSave}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium"
                 style={{ background: saved ? '#e8fdf0' : 'var(--background)', border: `1px solid ${saved ? '#22c55e' : 'var(--border)'}`, color: saved ? '#16a34a' : 'var(--text-secondary)' }}>
-                <BookOpen size={13} />{saved ? 'Saved ✓' : 'Save to Library'}
+                <BookOpen size={13} />{saved ? 'Saved to Library ✓' : 'Save to Library'}
               </button>
+              {/* Schedule */}
+              <button onClick={handleSchedule}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all"
+                style={{ background: scheduled ? 'rgba(59,130,246,0.1)' : 'var(--background)', border: `1px solid ${scheduled ? '#3b82f6' : 'var(--border)'}`, color: scheduled ? '#3b82f6' : 'var(--text-secondary)' }}>
+                <CalendarClock size={13} />{scheduled ? 'Scheduled ✓' : 'Schedule'}
+              </button>
+              {/* Move to Webflow */}
+              <button onClick={handleWebflow}
+                disabled={webflowLoading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all"
+                style={{ background: webflowDone ? 'rgba(99,102,241,0.1)' : 'var(--background)', border: `1px solid ${webflowDone ? '#6366f1' : 'var(--border)'}`, color: webflowDone ? '#6366f1' : 'var(--text-secondary)', opacity: webflowLoading ? 0.6 : 1 }}>
+                {webflowLoading
+                  ? <><div className="w-3.5 h-3.5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'rgba(99,102,241,0.3)', borderTopColor: '#6366f1' }} />Pushing to Webflow…</>
+                  : webflowDone
+                    ? <><ExternalLink size={13} />In Webflow ✓</>
+                    : <><ExternalLink size={13} />Move to Webflow</>
+                }
+              </button>
+              {/* Delete / restart */}
               <button onClick={resetPipeline}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm"
-                style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-                <RefreshCw size={13} />Start new article
+                style={{ background: 'var(--background)', border: '1px solid var(--border)', color: '#ef4444' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.06)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--background)'; }}>
+                <Trash2 size={13} />Delete & Start Over
               </button>
             </div>
           )}

@@ -27,6 +27,8 @@ const PILLAR_QUERIES: Record<string, string> = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type ArticleType = 'news' | 'pr' | 'earnings';
+
 export interface FeedItem {
   id: string;
   title: string;
@@ -36,7 +38,15 @@ export interface FeedItem {
   sourceDomain: string;
   publishedAt: string;
   pillar: string;
+  type: ArticleType;
   isGD: boolean;
+}
+
+function detectType(url: string, title: string): ArticleType {
+  if (/prnewswire|businesswire|globenewswire|accesswire/i.test(url)) return 'pr';
+  if (/\/ir\/|investor|earnings|quarterly|annual.report/i.test(url)) return 'earnings';
+  if (/earnings|quarterly results|investor day/i.test(title)) return 'earnings';
+  return 'news';
 }
 
 // ─── Credible domains for Tavily searches ─────────────────────────────────────
@@ -74,7 +84,7 @@ async function tavilySearch(query: string): Promise<Omit<FeedItem, 'id' | 'pilla
         query,
         search_depth: 'basic',
         max_results: 7,
-        days: 90,
+        days: 7,
         include_domains: CREDIBLE_DOMAINS,
       }),
     });
@@ -95,7 +105,8 @@ async function tavilySearch(query: string): Promise<Omit<FeedItem, 'id' | 'pilla
         description: (r.content || '').slice(0, 250),
         source: new URL(r.url).hostname.replace('www.', ''),
         sourceDomain: new URL(r.url).hostname.replace('www.', ''),
-        publishedAt: r.published_date || new Date().toISOString(),
+        publishedAt: r.published_date || '',
+        type: detectType(r.url || '', r.title || ''),
       }));
   } catch {
     return [];
@@ -189,7 +200,7 @@ export async function POST() {
       const item = unique[i];
       const pillar = keywordCategorize(item.title, item.description);
       if (pillar) {
-        categorised.push({ ...item, id: `${Date.now()}-${i}`, pillar, isGD: false });
+        categorised.push({ ...item, id: `${Date.now()}-${i}`, pillar, type: item.type ?? 'news', isGD: false });
       } else {
         needsClaude.push({ item, idx: i });
       }
@@ -204,6 +215,7 @@ export async function POST() {
           ...item,
           id: `${Date.now()}-${idx}`,
           pillar: claudePillars[i] || 'Digital Commerce',
+          type: item.type ?? 'news',
           isGD: false,
         });
       });
