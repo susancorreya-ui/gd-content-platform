@@ -215,14 +215,6 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
       if (fields.stat) parts.push(`Headline stat: ${fields.stat}`);
       parts.push(`Number of stories to feature: ${storyCount}`);
       if (recentStories.trim()) parts.push(`Recent stories to cover:\n${recentStories}`);
-    } else if (contentType === 'blog') {
-      if (contentPillar) parts.push(`Content Pillar: ${contentPillar}`);
-      config.fields.forEach((f) => {
-        if (fields[f.id]) parts.push(`${f.label}: ${fields[f.id]}`);
-      });
-      if (blogType === 'thought-leadership' && namedAuthor.trim()) {
-        parts.push(`Named Author: ${namedAuthor}`);
-      }
     } else {
       config.fields.forEach((f) => {
         if (fields[f.id]) parts.push(`${f.label}: ${fields[f.id]}`);
