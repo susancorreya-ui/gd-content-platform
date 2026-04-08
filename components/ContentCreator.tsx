@@ -237,7 +237,7 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
           prompt: buildPrompt(),
           researchContext: selectedDoc?.insights,
           newsArticleText: newsArticleText || undefined,
-          blogType: contentType === 'blog' ? blogType : undefined,
+          blogType: undefined,
           emailSubtype: contentType === 'email' ? emailSubtype : undefined,
         }),
       });
@@ -258,7 +258,6 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
       title: deriveTitle(fields, contentType),
       output,
       metadata: {
-        ...(contentType === 'blog' ? { blogType } : {}),
         ...(contentType === 'email' ? { emailSubtype } : {}),
         ...(fields.week ? { week: fields.week } : {}),
         ...(fields.retailer ? { retailer: fields.retailer } : {}),
@@ -285,85 +284,6 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
             </h2>
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{config.subtitle}</p>
           </div>
-
-          {/* Article format selector */}
-          {contentType === 'blog' && (
-            <div>
-              <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-                Article format
-              </label>
-              <div className="grid grid-cols-1 gap-1.5">
-                {BLOG_TYPES.map((bt) => (
-                  <button
-                    key={bt.id}
-                    onClick={() => setBlogType(bt.id)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-all"
-                    style={{
-                      background: blogType === bt.id ? '#f0eeff' : 'var(--background)',
-                      border: `1px solid ${blogType === bt.id ? 'var(--accent)' : 'var(--border)'}`,
-                      color: blogType === bt.id ? 'var(--accent)' : 'var(--text-primary)',
-                    }}
-                  >
-                    <span className="font-medium">{bt.label}</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>— {bt.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Content pillar selector */}
-          {contentType === 'blog' && (
-            <div>
-              <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-                Content pillar <span style={{ color: '#c0392b' }}>*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {CONTENT_PILLARS.map((pillar) => (
-                  <button
-                    key={pillar}
-                    onClick={() => setContentPillar(contentPillar === pillar ? '' : pillar)}
-                    className="px-3 py-2 rounded-lg text-left text-xs transition-all"
-                    style={{
-                      background: contentPillar === pillar ? '#f0eeff' : 'var(--background)',
-                      border: `1px solid ${contentPillar === pillar ? 'var(--accent)' : 'var(--border)'}`,
-                      color: contentPillar === pillar ? 'var(--accent)' : 'var(--text-primary)',
-                      fontWeight: contentPillar === pillar ? 600 : 400,
-                    }}
-                  >
-                    {pillar}
-                  </button>
-                ))}
-              </div>
-              {!contentPillar && (
-                <p className="mt-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  Select the primary pillar this article lives under.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Named author — Thought Leadership only */}
-          {contentType === 'blog' && blogType === 'thought-leadership' && (
-            <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
-                Named author <span style={{ color: '#c0392b' }}>*</span>
-              </label>
-              <input
-                type="text"
-                className="w-full text-sm rounded-lg px-3 py-2.5 outline-none transition-colors"
-                style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                placeholder="e.g. Gaurav Pant, Chief Insights Officer, Incisiv"
-                value={namedAuthor}
-                onChange={(e) => setNamedAuthor(e.target.value)}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
-              <p className="mt-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                Thought Leadership requires a named author. The voice and framing will reflect this person.
-              </p>
-            </div>
-          )}
 
           {/* Email subtype selector */}
           {contentType === 'email' && (
@@ -452,8 +372,7 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
             </>
           )}
 
-          {/* News URL (blog only — for Standard and Thought Leadership) */}
-          {contentType === 'blog' && (blogType === 'standard' || blogType === 'thought-leadership') && (
+          {false && (
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
                 News article URL (optional)
