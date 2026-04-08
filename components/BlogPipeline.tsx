@@ -548,6 +548,7 @@ export default function BlogPipeline({ researchDocs, onSaveToLibrary, initialTop
       title: (selectedHeadline || topic).slice(0, 80) || 'Pipeline Article',
       output: draft,
       metadata: { blogType },
+      status: 'saved',
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);

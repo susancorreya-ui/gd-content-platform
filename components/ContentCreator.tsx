@@ -264,6 +264,7 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
         ...(fields.week ? { week: fields.week } : {}),
         ...(fields.retailer ? { retailer: fields.retailer } : {}),
       },
+      status: 'saved',
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);

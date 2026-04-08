@@ -338,6 +338,7 @@ export default function GrocerPerformancePipeline({ onSaveToLibrary }: GrocerPer
       title: `${retailer}${discoveredPeriod ? ` — ${discoveredPeriod}` : ''} Performance`,
       output,
       metadata: { retailer, period: discoveredPeriod },
+      status: 'saved',
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);

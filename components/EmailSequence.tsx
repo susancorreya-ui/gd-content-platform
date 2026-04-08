@@ -87,6 +87,7 @@ export default function EmailSequence({ onSaveToLibrary }: EmailSequenceProps) {
       title: `${ep?.label} → ${a?.label} (${emailCount} emails)`,
       output,
       metadata: { entryPoint, goal, audience, emailCount: String(emailCount) },
+      status: 'saved',
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
