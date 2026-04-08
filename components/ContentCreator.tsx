@@ -116,6 +116,13 @@ const CONTENT_CONFIG: Record<
     subtitle: 'Multi-email nurture sequence based on entry point and audience',
     fields: [],
   },
+  'daily-summary': {
+    label: 'Daily Summary',
+    subtitle: 'Daily briefing on grocery industry news',
+    fields: [
+      { id: 'date', label: 'Date', placeholder: 'e.g. February 17, 2025' },
+    ],
+  },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
