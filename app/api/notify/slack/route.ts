@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { stage, topic, pillar } = await req.json();
+    const { stage, topic, pillar, retailer, period } = await req.json();
 
     const messages: Record<string, { emoji: string; heading: string; body: string; cta: string }> = {
       'checkpoint-outline': {
@@ -22,12 +22,35 @@ export async function POST(req: NextRequest) {
         body: `The article has passed through all 12 agents — written, edited, fact-checked, SEO-optimised, and quality-scored. It\'s waiting for your final approval and headline selection.`,
         cta: 'Review, select a headline, and approve for publishing →',
       },
+      'grocer-checkpoint': {
+        emoji: '🔍',
+        heading: 'Sources ready for review',
+        body: `Research is complete for ${retailer || 'the retailer'}${period ? ` (${period})` : ''}. Sources have been pulled from investor relations pages and industry press. Review and approve to begin writing the performance article.`,
+        cta: 'Review sources and approve to write the article →',
+      },
+      'grocer-done': {
+        emoji: '✅',
+        heading: 'Grocer Performance article complete',
+        body: `The ${retailer || 'retailer'}${period ? ` ${period}` : ''} performance article has been written in GD format with earnings data and benchmark citations. Ready for review and publishing.`,
+        cta: 'Review, save to library, or publish to Webflow →',
+      },
     };
 
     const msg = messages[stage];
     if (!msg) {
       return NextResponse.json({ error: 'Unknown stage' }, { status: 400 });
     }
+
+    // Build context fields depending on content type
+    const contextFields = retailer
+      ? [
+          { type: 'mrkdwn', text: `*Retailer*\n${retailer}` },
+          { type: 'mrkdwn', text: `*Period*\n${period || 'Latest'}` },
+        ]
+      : [
+          { type: 'mrkdwn', text: `*Article topic*\n${topic || 'Untitled'}` },
+          { type: 'mrkdwn', text: `*Content pillar*\n${pillar || '—'}` },
+        ];
 
     const payload = {
       blocks: [
@@ -41,10 +64,7 @@ export async function POST(req: NextRequest) {
         },
         {
           type: 'section',
-          fields: [
-            { type: 'mrkdwn', text: `*Article topic*\n${topic || 'Untitled'}` },
-            { type: 'mrkdwn', text: `*Content pillar*\n${pillar || '—'}` },
-          ],
+          fields: contextFields,
         },
         {
           type: 'section',
@@ -60,7 +80,11 @@ export async function POST(req: NextRequest) {
             {
               type: 'button',
               text: { type: 'plain_text', text: 'Open Content Engine', emoji: true },
-              url: 'http://localhost:3000',
+              url: stage === 'grocer-checkpoint'
+                ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=grocer-performance&resume=checkpoint`
+                : stage === 'grocer-done'
+                ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=grocer-performance`
+                : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=blog`,
               style: 'primary',
             },
           ],

@@ -3,7 +3,6 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// GD benchmark stats — woven into every article
 const GD_BENCHMARKS = `
 Key Grocery Doppio benchmark statistics to cite inline (use markdown hyperlinks):
 - 69% of grocery purchases are digitally influenced — [Grocery Doppio](https://grocerydoppio.com)
@@ -20,10 +19,10 @@ Weave 2–3 of these citations naturally into the relevant section (not all in o
 const ARTICLE_FORMAT = `
 Article structure (follow this exactly):
 
-## [RETAILER] [QUARTER] [YEAR]: Digital & Technology Performance
+## [RETAILER] [PERIOD]: Digital & Technology Performance
 
 **Executive Summary** (2 short paragraphs — 60–80 words total)
-Summarise the quarter's headline results. Include comparable sales, revenue, or relevant KPI if available. Frame the performance in the context of the broader grocery technology landscape. Do NOT start with the retailer's name.
+Summarise the period's headline results. Include comparable sales, revenue, or relevant KPI if available. Frame the performance in the context of the broader grocery technology landscape. Do NOT start with the retailer's name.
 
 **Key Highlights**
 • [KPI 1 with number]
@@ -56,13 +55,22 @@ Word count target: 750–1,050 words.
 `;
 
 export async function POST(req: NextRequest) {
-  const { retailer, quarter, year, knownData, contextSnippet } = await req.json();
+  const { retailer, period, knownData, contextSnippet, includedSources, excludedSources, uploadedContext } = await req.json();
 
   if (!retailer) {
     return NextResponse.json({ error: 'Retailer name is required' }, { status: 400 });
   }
 
-  const periodLabel = `${quarter} ${year}`;
+  const periodLabel = period || 'Latest Period';
+
+  const sourceGuidance = [
+    includedSources?.length
+      ? `The analyst has selected these sources to prioritise: ${includedSources.join('; ')}.`
+      : '',
+    excludedSources?.length
+      ? `The analyst has excluded these sources — do not cite them: ${excludedSources.join('; ')}.`
+      : '',
+  ].filter(Boolean).join('\n');
 
   const systemPrompt = `You are a senior analyst at Grocery Doppio, the leading grocery technology intelligence platform. Your articles are read by category managers, digital leads, and C-suite executives at top grocery retailers and CPG brands.
 
@@ -82,7 +90,11 @@ ${GD_BENCHMARKS}
 ${ARTICLE_FORMAT}
 
 Research context:
-${contextSnippet || `No external research was found. Write based on general knowledge of ${retailer}'s digital strategy and the GD benchmarks above. Flag in the article that specific ${periodLabel} figures were not available.`}
+${contextSnippet || `No external research was found. Write based on general knowledge of ${retailer}'s digital strategy and the GD benchmarks above. Flag in the article that specific figures were not available.`}
+
+${uploadedContext ? `Uploaded analyst documents (treat as primary source material):\n${uploadedContext}` : ''}
+
+${sourceGuidance ? `Source guidance:\n${sourceGuidance}` : ''}
 
 ${knownData?.trim() ? `Additional analyst notes:\n${knownData}` : ''}
 
@@ -92,9 +104,7 @@ Output only the finished article in clean markdown. No preamble, no meta-comment
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 3500,
-      messages: [
-        { role: 'user', content: userPrompt },
-      ],
+      messages: [{ role: 'user', content: userPrompt }],
       system: systemPrompt,
     });
 

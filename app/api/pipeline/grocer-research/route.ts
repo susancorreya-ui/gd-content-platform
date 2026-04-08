@@ -22,6 +22,7 @@ export interface GrowerSource {
 }
 
 export interface ExtractedInsights {
+  period: string;
   headline: string;
   sections: {
     financials: string[];
@@ -35,36 +36,84 @@ export interface ExtractedInsights {
   notFound: string[];
 }
 
-const FINANCIAL_DOMAINS = [
+// ─── Retailer IR / newsroom domain map ────────────────────────────────────────
+// When a grocer's own IR or newsroom domain is known, we search it first so we
+// get the most authoritative, up-to-date earnings data straight from the source.
+
+const GROCER_IR_DOMAINS: Record<string, string[]> = {
+  'ahold delhaize':      ['aholddelhaize.com'],
+  'albertsons':          ['investors.albertsonscompanies.com', 'albertsonscompanies.com'],
+  'aldi':                ['corporate.aldi.us', 'aldi.us'],
+  'amazon fresh':        ['ir.aboutamazon.com', 'aboutamazon.com'],
+  "bj's wholesale":      ['ir.bjs.com'],
+  'costco':              ['investor.costco.com'],
+  'cvs pharmacy':        ['investors.cvs.com'],
+  'dollar general':      ['investor.dollargeneral.com'],
+  'food lion':           ['foodlion.com'],
+  'giant eagle':         ['gianteagle.com'],
+  'grocery outlet':      ['investors.groceryoutlet.com'],
+  'h-e-b':               ['newsroom.heb.com'],
+  'hannaford':           ['hannaford.com'],
+  'hy-vee':              ['hy-vee.com'],
+  'instacart':           ['ir.instacart.com'],
+  'kroger':              ['ir.kroger.com', 'thekrogerco.com'],
+  'meijer':              ['meijer.com'],
+  'publix':              ['corporate.publix.com'],
+  'safeway':             ['albertsonscompanies.com'],
+  "sam's club":          ['corporate.walmart.com', 'stock.walmart.com'],
+  'stop & shop':         ['stopandshop.com'],
+  'target':              ['investors.target.com', 'corporate.target.com'],
+  "trader joe's":        ['traderjoes.com'],
+  'walmart':             ['stock.walmart.com', 'corporate.walmart.com'],
+  'weis markets':        ['weismarkets.com'],
+  'whole foods':         ['media.wholefoodsmarket.com'],
+  'winn-dixie':          ['segrocers.com'],
+};
+
+const CREDIBLE_FINANCIAL_DOMAINS = [
   'prnewswire.com', 'businesswire.com', 'globenewswire.com', 'accesswire.com',
   'bloomberg.com', 'wsj.com', 'reuters.com', 'cnbc.com', 'ft.com',
   'grocerydive.com', 'supermarketnews.com', 'progressivegrocer.com',
-  'chainstoreage.com', 'forbes.com',
-  'ir.kroger.com', 'investors.albertsonscompanies.com', 'investor.costco.com',
-  'investors.groceryoutlet.com', 'investors.target.com', 'stock.walmart.com',
-  'aholddelhaize.com', 'weismarkets.com',
+  'chainstoreage.com', 'forbes.com', 'apnews.com',
 ];
 
-async function tavilySearch(query: string): Promise<RawResult[]> {
+function getIRDomains(retailer: string): string[] {
+  const key = retailer.toLowerCase().trim();
+  for (const [name, domains] of Object.entries(GROCER_IR_DOMAINS)) {
+    if (key.includes(name) || name.includes(key)) return domains;
+  }
+  return [];
+}
+
+const SEARCH_TIMEOUT_MS = 10000;
+
+async function tavilySearch(
+  query: string,
+  includeDomains: string[],
+  days = 180,
+): Promise<RawResult[]> {
   const apiKey = process.env.TAVILY_API_KEY;
   if (!apiKey) throw new Error('TAVILY_API_KEY not configured in .env.local');
 
-  const res = await fetch('https://api.tavily.com/search', {
+  const fetchPromise = fetch('https://api.tavily.com/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       api_key: apiKey,
       query,
-      search_depth: 'advanced',
+      search_depth: 'basic',
+      include_raw_content: true,
       max_results: 5,
-      days: 365,
-      include_domains: FINANCIAL_DOMAINS,
+      days,
+      include_domains: includeDomains,
     }),
-  });
+  }).then(r => r.json()).then(d => d.results || []);
 
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.results || [];
+  const timeout = new Promise<RawResult[]>(resolve =>
+    setTimeout(() => resolve([]), SEARCH_TIMEOUT_MS)
+  );
+
+  return Promise.race([fetchPromise, timeout]);
 }
 
 function guessSourceType(url: string): string {
@@ -72,7 +121,7 @@ function guessSourceType(url: string): string {
   if (/\/(ir|investor|investors)\/|earnings|quarterly|annual/i.test(url)) return 'Investor relations';
   if (/bloomberg|wsj|ft\.com|reuters/.test(url)) return 'Financial news';
   if (/grocerydive|supermarketnews|progressivegrocer|chainstoreage/.test(url)) return 'Trade publication';
-  if (/cnbc|forbes/.test(url)) return 'Business news';
+  if (/cnbc|forbes|apnews/.test(url)) return 'Business news';
   return 'Industry source';
 }
 
@@ -82,31 +131,33 @@ function extractDomain(url: string): string {
 
 async function extractInsights(
   retailer: string,
-  periodLabel: string,
   rawContent: string,
   knownData: string,
 ): Promise<ExtractedInsights> {
-  const prompt = `You are a grocery industry analyst. Read the following research content about ${retailer}'s ${periodLabel} performance and extract every specific data point you can find.
+  const prompt = `You are a grocery industry analyst. Read the following research content about ${retailer} and extract every specific data point from their most recent published earnings report or financial results.
 
 Research content:
 ${rawContent}
 
 ${knownData?.trim() ? `Analyst notes:\n${knownData}\n` : ''}
 
-Extract all available facts into this exact JSON structure. Each array should contain short, specific bullet points with numbers where available. If a section has no data, leave its array empty. Do not fabricate any numbers — only use what is in the content above.
+Extract all available facts into this exact JSON structure. Each array should contain short, specific bullet points with numbers where available. If a section has no data, leave its array empty. Do not fabricate any numbers.
+
+IMPORTANT: The "period" field must identify exactly which reporting period this data covers (e.g. "Q4 FY2025", "Q2 2026", "FY2024", "Third Quarter 2025"). Derive this from the content — do not guess.
 
 {
-  "headline": "one-line summary of the quarter's headline result (e.g. 'Kroger Q4 2024: comp sales +2.8%, digital sales +18%')",
+  "period": "the specific reporting period found in the content (e.g. Q4 FY2025, Q1 2026)",
+  "headline": "one-line summary of the headline result with the period (e.g. 'Kroger Q4 FY2025: comp sales +2.8%, digital sales +18%')",
   "sections": {
-    "financials": ["revenue figure", "comparable sales growth", "gross margin", "operating income", "guidance if any"],
+    "financials": ["revenue figure", "comparable sales growth", "gross margin", "operating income", "EPS", "guidance if stated"],
     "digitalCommerce": ["ecommerce sales growth %", "online order volume", "app stats", "click-and-collect / BOPIS data", "delivery metrics"],
-    "fulfilment": ["fulfilment centre count", "dark store updates", "same-day delivery expansion", "third-party partnerships (Instacart, DoorDash etc)", "delivery speed improvements"],
-    "loyalty": ["loyalty member count", "programme changes", "personalised offer data", "redemption rates", "reward programme metrics"],
-    "retailMedia": ["retail media network revenue", "YoY growth", "CPG advertiser count", "programmatic / off-site expansion", "named partnerships"],
-    "aiTechnology": ["AI initiatives named", "automation pilots", "pricing algorithm updates", "demand forecasting", "in-store tech deployments"],
-    "outlook": ["next quarter or FY guidance", "strategic investment priorities", "named initiatives", "management commentary on technology"]
+    "fulfilment": ["fulfilment centre count", "dark store updates", "same-day delivery expansion", "third-party partnerships", "delivery improvements"],
+    "loyalty": ["loyalty member count", "programme changes", "personalised offer data", "redemption rates", "reward metrics"],
+    "retailMedia": ["retail media network revenue", "YoY growth", "CPG advertiser count", "off-site expansion", "named partnerships"],
+    "aiTechnology": ["AI initiatives named", "automation pilots", "pricing algorithm updates", "demand forecasting", "in-store tech"],
+    "outlook": ["next quarter or FY guidance", "strategic investment priorities", "named initiatives", "management commentary"]
   },
-  "notFound": ["list any of the 7 sections above where no data was found"]
+  "notFound": ["list sections where no data was found"]
 }
 
 Return only valid JSON. No markdown, no preamble.`;
@@ -114,7 +165,7 @@ Return only valid JSON. No markdown, no preamble.`;
   try {
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1200,
+      max_tokens: 1400,
       messages: [{ role: 'user', content: prompt }],
     });
 
@@ -123,15 +174,11 @@ Return only valid JSON. No markdown, no preamble.`;
     return JSON.parse(cleaned) as ExtractedInsights;
   } catch {
     return {
-      headline: `${retailer} ${periodLabel} performance`,
+      period: 'Latest period',
+      headline: `${retailer} — latest earnings`,
       sections: {
-        financials: [],
-        digitalCommerce: [],
-        fulfilment: [],
-        loyalty: [],
-        retailMedia: [],
-        aiTechnology: [],
-        outlook: [],
+        financials: [], digitalCommerce: [], fulfilment: [],
+        loyalty: [], retailMedia: [], aiTechnology: [], outlook: [],
       },
       notFound: ['Extraction failed — article will use raw research content'],
     };
@@ -139,22 +186,22 @@ Return only valid JSON. No markdown, no preamble.`;
 }
 
 export async function POST(req: NextRequest) {
-  const { retailer, quarter, year, knownData, supportingLinks } = await req.json();
+  const { retailer, knownData, supportingLinks } = await req.json();
 
   if (!retailer) {
     return NextResponse.json({ error: 'Retailer name is required' }, { status: 400 });
   }
 
-  const periodLabel = `${quarter} ${year}`;
+  const irDomains = getIRDomains(retailer);
+  const allDomains = [...irDomains, ...CREDIBLE_FINANCIAL_DOMAINS];
 
   try {
-    // 5 targeted searches — each covers a different section of the article
+    // 2 parallel searches: IR/earnings first, then one broad press query covering all topics
     const searches = await Promise.allSettled([
-      tavilySearch(`"${retailer}" ${periodLabel} earnings results revenue comparable sales`),
-      tavilySearch(`"${retailer}" ${periodLabel} digital ecommerce online grocery delivery`),
-      tavilySearch(`"${retailer}" ${periodLabel} loyalty programme rewards personalisation`),
-      tavilySearch(`"${retailer}" ${periodLabel} retail media network advertising CPG`),
-      tavilySearch(`"${retailer}" ${periodLabel} artificial intelligence automation technology investment`),
+      irDomains.length > 0
+        ? tavilySearch(`${retailer} latest earnings results quarterly annual`, irDomains, 365)
+        : tavilySearch(`"${retailer}" latest earnings results financial performance`, CREDIBLE_FINANCIAL_DOMAINS, 180),
+      tavilySearch(`"${retailer}" earnings digital ecommerce loyalty retail media AI technology guidance`, allDomains, 180),
     ]);
 
     // Merge and deduplicate
@@ -171,6 +218,15 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    // Sort: IR/newsroom results first
+    allResults.sort((a, b) => {
+      const aIsIR = irDomains.some(d => a.url.includes(d));
+      const bIsIR = irDomains.some(d => b.url.includes(d));
+      if (aIsIR && !bIsIR) return -1;
+      if (!aIsIR && bIsIR) return 1;
+      return 0;
+    });
 
     // Build source list
     const webSources: GrowerSource[] = allResults.slice(0, 15).map((r, i) => ({
@@ -205,22 +261,22 @@ export async function POST(req: NextRequest) {
 
     const allSources = [...webSources, ...userLinks];
 
-    // Build raw content for extraction agent
+    // Build content for extraction agent
     const rawContent = allResults
-      .map(r => `### ${r.title}\nSource: ${extractDomain(r.url)}\n${r.content || ''}`)
+      .map(r => `### ${r.title}\nSource: ${extractDomain(r.url)} | Date: ${r.published_date || 'unknown'}\n${r.content || ''}`)
       .join('\n\n---\n\n')
-      .slice(0, 18000); // stay within Haiku context
+      .slice(0, 18000);
 
-    // Run extraction agent in parallel with source building
-    const insights = await extractInsights(retailer, periodLabel, rawContent, knownData || '');
+    const insights = await extractInsights(retailer, rawContent, knownData || '');
 
-    // Build context snippet for write stage
+    // Assemble context for write stage
     const contextSnippet = [
-      `Extracted insights for ${retailer} ${periodLabel}:`,
+      `Retailer: ${retailer}`,
+      `Reporting period: ${insights.period}`,
       insights.headline ? `Headline: ${insights.headline}` : '',
       Object.entries(insights.sections)
         .filter(([, bullets]) => bullets.length > 0)
-        .map(([section, bullets]) => `${section}:\n${bullets.map((b: string) => `- ${b}`).join('\n')}`)
+        .map(([section, bullets]) => `${section}:\n${(bullets as string[]).map(b => `- ${b}`).join('\n')}`)
         .join('\n\n'),
       knownData?.trim() ? `Analyst notes:\n${knownData}` : '',
       allSources.length > 0
@@ -228,11 +284,15 @@ export async function POST(req: NextRequest) {
         : '',
     ].filter(Boolean).join('\n\n');
 
+    const irNote = irDomains.length > 0
+      ? `Searched ${retailer}'s investor relations pages (${irDomains[0]}) and industry press.`
+      : `Searched industry press and financial newswires.`;
+
     return NextResponse.json({
       sources: allSources,
       insights,
       contextSnippet,
-      summary: `Analysed ${allResults.length} source${allResults.length !== 1 ? 's' : ''} for ${retailer} ${periodLabel}. ${insights.notFound?.length ? `No data found for: ${insights.notFound.join(', ')}.` : 'All sections covered.'}`,
+      summary: `${irNote} Found ${allResults.length} source${allResults.length !== 1 ? 's' : ''}. Latest period identified: ${insights.period}.`,
     });
   } catch (err) {
     return NextResponse.json(

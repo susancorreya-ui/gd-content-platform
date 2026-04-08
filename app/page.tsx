@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import ContentCreator from '@/components/ContentCreator';
 import ResearchUpload from '@/components/ResearchUpload';
@@ -19,8 +19,23 @@ const CREATOR_TYPES: ContentType[] = [
   'blog', 'grocer-performance', 'market-snapshot', 'newsletter', 'email', 'video-script',
 ];
 
+const VALID_VIEWS = [
+  'insights', 'home', 'feed', 'companies', 'upload', 'library',
+  'email-sequence', 'social-scheduler', 'website-schedule',
+  'blog', 'grocer-performance', 'market-snapshot', 'newsletter', 'email', 'video-script',
+];
+
 export default function Home() {
   const [activeView, setActiveView] = useState('insights');
+
+  // On first load, read ?view= from the URL and navigate there directly
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    if (view && VALID_VIEWS.includes(view)) {
+      setActiveView(view);
+    }
+  }, []);
   const [pipelineKey, setPipelineKey] = useState(0);
   const [feedPreset, setFeedPreset] = useState<{ topic: string; pillar: string } | null>(null);
   const { docs: researchDocs, addDoc, removeDoc } = useResearchDocs();
