@@ -145,8 +145,13 @@ async function tavilySearch(query: string): Promise<Omit<FeedItem, 'id' | 'pilla
         include_domains: CREDIBLE_DOMAINS,
       }),
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[research-feed] Tavily error ${res.status}:`, errText);
+      return [];
+    }
     const data = await res.json();
+    console.log(`[research-feed] Tavily returned ${data.results?.length ?? 0} results for: ${query}`);
 
     return (data.results || [])
       .filter((r: { published_date?: string }) => {
