@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { webSearch } from '@/lib/webSearch';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -34,30 +35,12 @@ const CREDIBLE_DOMAINS = [
 ];
 
 async function tavilySearch(query: string, count = 6, siteFilter?: string): Promise<RawResult[]> {
-  const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) throw new Error('TAVILY_API_KEY not configured in .env.local');
-
-  const body: Record<string, unknown> = {
-    api_key: apiKey,
+  const raw = await webSearch({
     query,
-    search_depth: 'basic',
-    max_results: count,
-    include_domains: siteFilter ? [siteFilter] : CREDIBLE_DOMAINS,
-  };
-
-  const res = await fetch('https://api.tavily.com/search', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    maxResults: count,
+    includeDomains: siteFilter ? [siteFilter] : CREDIBLE_DOMAINS,
   });
-
-  if (!res.ok) throw new Error(`Tavily search failed: ${res.status}`);
-  const data = await res.json();
-  return (data.results || []).map((r: { title: string; url: string; content: string }) => ({
-    title: r.title,
-    url: r.url,
-    description: r.content || '',
-  }));
+  return raw.map(r => ({ title: r.title, url: r.url, description: r.content }));
 }
 
 function guessSourceType(url: string): string {

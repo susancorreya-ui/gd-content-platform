@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { webSearch } from '@/lib/webSearch';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -92,28 +93,24 @@ async function tavilySearch(
   includeDomains: string[],
   days = 180,
 ): Promise<RawResult[]> {
-  const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) throw new Error('TAVILY_API_KEY not configured in .env.local');
-
-  const fetchPromise = fetch('https://api.tavily.com/search', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      api_key: apiKey,
-      query,
-      search_depth: 'basic',
-      include_raw_content: true,
-      max_results: 5,
-      days,
-      include_domains: includeDomains,
-    }),
-  }).then(r => r.json()).then(d => d.results || []);
+  const searchPromise = webSearch({
+    query,
+    maxResults: 5,
+    days,
+    includeDomains,
+    includeRawContent: true,
+  }).then(results => results.map(r => ({
+    title: r.title,
+    url: r.url,
+    content: r.content,
+    published_date: r.published_date || undefined,
+  } as RawResult)));
 
   const timeout = new Promise<RawResult[]>(resolve =>
     setTimeout(() => resolve([]), SEARCH_TIMEOUT_MS)
   );
 
-  return Promise.race([fetchPromise, timeout]);
+  return Promise.race([searchPromise, timeout]);
 }
 
 function guessSourceType(url: string): string {

@@ -415,7 +415,7 @@ function useLatestSignals(): { signals: FeedItem[]; fetchedAt: string | null } {
 
   useEffect(() => {
     try {
-      const cached = localStorage.getItem('gd_research_feed_v5');
+      const cached = localStorage.getItem('gd_research_feed_v13');
       if (cached) {
         const parsed = JSON.parse(cached);
         const items: FeedItem[] = parsed.items || [];

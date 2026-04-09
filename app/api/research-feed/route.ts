@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { webSearch } from '@/lib/webSearch';
 
 export const maxDuration = 60; // seconds (requires Vercel Pro; 10s on Hobby)
 
@@ -126,51 +127,37 @@ const CREDIBLE_DOMAINS = [
   'usda.gov', 'census.gov', 'bls.gov',
 ];
 
-// ─── Tavily Search ────────────────────────────────────────────────────────────
+// ─── Search ───────────────────────────────────────────────────────────────────
 
 async function tavilySearch(query: string): Promise<Omit<FeedItem, 'id' | 'pillar' | 'isGD'>[]> {
-  const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) return [];
+  const results = await webSearch({
+    query,
+    searchDepth: 'advanced',
+    maxResults: 7,
+    days: 7,
+    includeDomains: CREDIBLE_DOMAINS,
+  });
+  console.log(`[research-feed] Got ${results.length} results for: ${query}`);
 
-  try {
-    const res = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: apiKey,
-        query,
-        search_depth: 'advanced',
-        max_results: 7,
-        days: 7,
-        include_domains: CREDIBLE_DOMAINS,
-      }),
+  return results
+    .filter(r => {
+      if (!r.published_date) return true;
+      const ts = new Date(r.published_date).getTime();
+      return isNaN(ts) || ts >= CUTOFF_DATE;
+    })
+    .map(r => {
+      let host = '';
+      try { host = new URL(r.url).hostname.replace('www.', ''); } catch { /* */ }
+      return {
+        title: r.title,
+        url: r.url,
+        description: r.content.slice(0, 250),
+        source: host,
+        sourceDomain: host,
+        publishedAt: r.published_date,
+        type: detectType(r.url, r.title),
+      };
     });
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[research-feed] Tavily error ${res.status}:`, errText);
-      return [];
-    }
-    const data = await res.json();
-    console.log(`[research-feed] Tavily returned ${data.results?.length ?? 0} results for: ${query}`);
-
-    return (data.results || [])
-      .filter((r: { published_date?: string }) => {
-        if (!r.published_date) return true; // no date — trust Tavily's days:7 param
-        const ts = new Date(r.published_date).getTime();
-        return isNaN(ts) || ts >= CUTOFF_DATE; // drop confirmed old articles
-      })
-      .map((r: { title: string; url: string; content: string; published_date?: string }) => ({
-        title: r.title || '',
-        url: r.url || '',
-        description: (r.content || '').slice(0, 250),
-        source: new URL(r.url).hostname.replace('www.', ''),
-        sourceDomain: new URL(r.url).hostname.replace('www.', ''),
-        publishedAt: r.published_date || '',
-        type: detectType(r.url || '', r.title || ''),
-      }));
-  } catch {
-    return [];
-  }
 }
 
 // ─── Pillar Categorisation ────────────────────────────────────────────────────

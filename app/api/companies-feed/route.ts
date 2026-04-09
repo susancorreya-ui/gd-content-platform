@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { webSearch } from '@/lib/webSearch';
 
 export const maxDuration = 60; // seconds (requires Vercel Pro; 10s on Hobby)
 
@@ -257,7 +258,6 @@ function detectType(url: string, title: string): 'news' | 'pr' | 'earnings' | 's
 
 async function searchCompany(
   company: typeof TOP_20_GROCERS[0],
-  apiKey: string
 ): Promise<CompanyDevelopment[]> {
   const allDomains = [
     ...company.ownedDomains,
@@ -265,41 +265,35 @@ async function searchCompany(
   ];
 
   const searches = await Promise.allSettled([
-    fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: apiKey,
-        query: `${company.name} technology digital AI retail media automation personalization 2026`,
-        search_depth: 'advanced',
-        max_results: 4,
-        days: 90,
-        include_domains: allDomains,
-      }),
-    }).then(r => r.json()),
-
-    fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: apiKey,
-        query: `"${company.name}" grocery technology digital AI retail media 2026`,
-        search_depth: 'advanced',
-        max_results: 4,
-        days: 90,
-        include_domains: [
-          'reuters.com', 'bloomberg.com', 'wsj.com', 'cnbc.com',
-          'ft.com', 'forbes.com', 'businesswire.com', 'prnewswire.com',
-          'apnews.com', 'mckinsey.com', 'deloitte.com',
-        ],
-      }),
-    }).then(r => r.json()),
+    webSearch({
+      query: `${company.name} technology digital AI retail media automation personalization 2026`,
+      searchDepth: 'advanced',
+      maxResults: 4,
+      days: 90,
+      includeDomains: allDomains,
+    }),
+    webSearch({
+      query: `"${company.name}" grocery technology digital AI retail media 2026`,
+      searchDepth: 'advanced',
+      maxResults: 4,
+      days: 90,
+      includeDomains: [
+        'reuters.com', 'bloomberg.com', 'wsj.com', 'cnbc.com',
+        'ft.com', 'forbes.com', 'businesswire.com', 'prnewswire.com',
+        'apnews.com', 'mckinsey.com', 'deloitte.com',
+      ],
+    }),
   ]);
 
-  const results: { title: string; url: string; content?: string; raw_content?: string; published_date?: string }[] = [];
+  const results: { title: string; url: string; content?: string; published_date?: string }[] = [];
   for (const s of searches) {
-    if (s.status === 'fulfilled' && s.value?.results) {
-      results.push(...s.value.results);
+    if (s.status === 'fulfilled') {
+      results.push(...s.value.map(r => ({
+        title: r.title,
+        url: r.url,
+        content: r.content,
+        published_date: r.published_date,
+      })));
     }
   }
 
@@ -350,13 +344,8 @@ async function searchCompany(
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export async function POST() {
-  const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'TAVILY_API_KEY not configured' }, { status: 500 });
-  }
-
   const results = await Promise.allSettled(
-    TOP_20_GROCERS.map(company => searchCompany(company, apiKey))
+    TOP_20_GROCERS.map(company => searchCompany(company))
   );
 
   const companies: CompanyUpdate[] = TOP_20_GROCERS.map((company, i) => ({

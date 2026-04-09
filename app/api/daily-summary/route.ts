@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { webSearch } from '@/lib/webSearch';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -24,8 +25,6 @@ export async function POST(req: NextRequest) {
   try {
     const { date }: { date: string } = await req.json();
 
-    const apiKey = process.env.TAVILY_API_KEY;
-
     const dateObj = new Date(date);
     const cutoff = new Date(date);
     cutoff.setDate(cutoff.getDate() - 7);
@@ -36,43 +35,25 @@ export async function POST(req: NextRequest) {
 
     const allResults: { title: string; url: string; content: string; published_date?: string }[] = [];
 
-    if (apiKey) {
-      // topic:"news" forces Tavily to return actual news articles with proper publish dates
-      const tavilySearch = (query: string, max: number) =>
-        fetch('https://api.tavily.com/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            api_key: apiKey,
-            query,
-            topic: 'news',
-            search_depth: 'basic',
-            max_results: max,
-            days: 7,
-            include_domains: CREDIBLE_DOMAINS,
-          }),
-        }).then(r => r.json());
+    const searches = await Promise.allSettled([
+      // Pillar 1 & 2: AI + Automation news at top grocery retailers
+      webSearch({ query: `grocery retailer AI artificial intelligence automation launch announcement ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
+      // Pillar 3 & 4: Digital Commerce + Personalization
+      webSearch({ query: `grocery retail digital commerce personalization app launch ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
+      // Pillar 5 & 6: Retail Media + Supply Chain
+      webSearch({ query: `grocery retail media network supply chain technology news ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
+      // Top retailers: any technology or digital news
+      webSearch({ query: `Walmart Kroger Costco Albertsons Target Publix grocery technology news ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
+    ]);
 
-      const searches = await Promise.allSettled([
-        // Pillar 1 & 2: AI + Automation news at top grocery retailers
-        tavilySearch(`grocery retailer AI artificial intelligence automation launch announcement ${monthYear}`, 6),
-        // Pillar 3 & 4: Digital Commerce + Personalization
-        tavilySearch(`grocery retail digital commerce personalization app launch ${monthYear}`, 6),
-        // Pillar 5 & 6: Retail Media + Supply Chain
-        tavilySearch(`grocery retail media network supply chain technology news ${monthYear}`, 6),
-        // Top retailers: any technology or digital news
-        tavilySearch(`Walmart Kroger Costco Albertsons Target Publix grocery technology news ${monthYear}`, 6),
-      ]);
-
-      for (const r of searches) {
-        if (r.status === 'fulfilled' && r.value?.results) {
-          allResults.push(...r.value.results.map((item: { title: string; url: string; content: string; published_date?: string }) => ({
-            title: item.title,
-            url: item.url,
-            content: item.content,
-            published_date: item.published_date,
-          })));
-        }
+    for (const r of searches) {
+      if (r.status === 'fulfilled') {
+        allResults.push(...r.value.map(item => ({
+          title: item.title,
+          url: item.url,
+          content: item.content,
+          published_date: item.published_date || undefined,
+        })));
       }
     }
 
