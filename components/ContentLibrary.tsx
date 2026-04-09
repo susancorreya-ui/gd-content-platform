@@ -16,7 +16,6 @@ const TYPE_LABELS: Record<string, string> = {
   email:                'Email',
   'video-script':       'Video Script',
   'email-sequence':     'Email Sequence',
-  'daily-summary':      'Daily Summary',
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -29,7 +28,6 @@ const TYPE_COLORS: Record<string, string> = {
   email:                '#ef4444',
   'video-script':       '#8b5cf6',
   'email-sequence':     '#ec4899',
-  'daily-summary':      '#00AA50',
 };
 
 const STATUS_CONFIG: Record<LibraryItemStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -40,7 +38,7 @@ const STATUS_CONFIG: Record<LibraryItemStatus, { label: string; color: string; b
 
 const TYPE_FILTER_ORDER: Array<ContentType | 'all'> = [
   'all', 'blog', 'market-snapshot', 'grocer-performance', 'video-script',
-  'daily-summary', 'newsletter', 'email', 'email-sequence',
+  'newsletter', 'email', 'email-sequence',
   'social-linkedin', 'social-twitter',
 ];
 
@@ -414,7 +412,7 @@ export default function ContentLibrary({ items, onRemove, onUpdateStatus }: Cont
             </div>
             <p className="text-[15px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Library is empty</p>
             <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-              Save content from any creator or the Daily Summary to store it here
+              Save content from any creator to store it here
             </p>
           </div>
         ) : filtered.length === 0 ? (

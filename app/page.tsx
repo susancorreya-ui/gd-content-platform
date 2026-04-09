@@ -11,6 +11,7 @@ import EmailSequence from '@/components/EmailSequence';
 import SocialScheduler from '@/components/SocialScheduler';
 import WebsiteSchedule from '@/components/WebsiteSchedule';
 import ContentLibrary from '@/components/ContentLibrary';
+import DailySummary from '@/components/DailySummary';
 import { ContentType, LibraryItem } from '@/types';
 import { useLibrary } from '@/lib/useLibrary';
 import { useResearchDocs } from '@/lib/useResearchDocs';
@@ -20,7 +21,7 @@ const CREATOR_TYPES: ContentType[] = [
 ];
 
 const VALID_VIEWS = [
-  'insights', 'home', 'feed', 'companies', 'upload', 'library',
+  'insights', 'home', 'feed', 'companies', 'daily-summary', 'upload', 'library',
   'email-sequence', 'social-scheduler', 'website-schedule',
   'blog', 'grocer-performance', 'market-snapshot', 'newsletter', 'email', 'video-script',
 ];
@@ -60,6 +61,9 @@ export default function Home() {
     }
     if (activeView === 'companies') {
       return <CompaniesTracker />;
+    }
+    if (activeView === 'daily-summary') {
+      return <DailySummary />;
     }
     if (activeView === 'upload') {
       return (

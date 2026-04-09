@@ -3,8 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   RefreshCw, ExternalLink, AlertCircle, Building2,
-  TrendingUp, TrendingDown, Loader2, Search, ChevronRight,
-  ChevronDown, ChevronUp, Zap,
+  TrendingUp, TrendingDown, Loader2, Search, ChevronRight, Zap,
 } from 'lucide-react';
 import { useCompaniesFeed } from '@/lib/useCompaniesFeed';
 import { CompanyUpdate, CompanyDevelopment } from '@/app/api/companies-feed/route';
@@ -41,16 +40,11 @@ function avatarColor(name: string) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function timeAgo(iso: string): string {
+function formatDate(iso: string): string {
   if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  if (isNaN(diff) || diff < 0) return '';
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  try {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch { return ''; }
 }
 
 function timeSince(iso: string): string {
@@ -167,8 +161,7 @@ function FinancialPreview({ company }: { company: CompanyUpdate }) {
 function DevelopmentCard({ item, company }: { item: CompanyDevelopment & { companyName: string }; company: string }) {
   const pillarColor = PILLAR_COLORS[item.pillar] || '#00AA50';
   const typeConfig = TYPE_CONFIG[item.type] || TYPE_CONFIG.news;
-  const age = timeAgo(item.publishedAt);
-  const [expanded, setExpanded] = useState(false);
+  const date = formatDate(item.publishedAt);
 
   return (
     <div
@@ -196,7 +189,7 @@ function DevelopmentCard({ item, company }: { item: CompanyDevelopment & { compa
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={faviconUrl(item.sourceDomain)} alt="" width={13} height={13} className="rounded-sm flex-shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <span className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>{item.source}</span>
-          {age && <><span style={{ color: 'var(--text-secondary)', opacity: 0.4 }}>·</span><span className="text-[11px] font-medium" style={{ color: 'var(--accent)' }}>{age}</span></>}
+          {date && <><span style={{ color: 'var(--text-secondary)', opacity: 0.4 }}>·</span><span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{date}</span></>}
         </div>
 
         {/* Headline */}
@@ -211,17 +204,14 @@ function DevelopmentCard({ item, company }: { item: CompanyDevelopment & { compa
 
         {/* Description */}
         {item.description && (
-          <p className={`text-[12px] leading-relaxed ${expanded ? '' : 'line-clamp-2'}`} style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-[12px] leading-relaxed line-clamp-3" style={{ color: 'var(--text-secondary)' }}>
             {item.description}
           </p>
         )}
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: 'var(--border)' }}>
-        <button onClick={() => setExpanded(o => !o)} className="flex items-center gap-1 text-[11px] transition-opacity hover:opacity-70" style={{ color: 'var(--text-secondary)' }}>
-          {expanded ? <><ChevronUp size={12} />Less</> : <><ChevronDown size={12} />Read more</>}
-        </button>
+      <div className="flex items-center justify-end px-4 py-2.5 border-t" style={{ borderColor: 'var(--border)' }}>
         <a href={item.url} target="_blank" rel="noopener noreferrer"
           className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-secondary)' }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-primary)'; }}
@@ -390,7 +380,14 @@ export default function CompaniesTracker() {
       ? allDevelopments
       : allDevelopments.filter(d => d.companyName === activeCompany);
     if (activeType !== 'all') list = list.filter(d => d.type === activeType);
-    return list;
+    return [...list].sort((a, b) => {
+      const aT = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const bT = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      if (aT === 0 && bT === 0) return 0;
+      if (aT === 0) return 1;
+      if (bT === 0) return -1;
+      return bT - aT;
+    });
   }, [allDevelopments, activeCompany, activeType]);
 
   const selectedCompany = companies.find(c => c.company === activeCompany) || null;

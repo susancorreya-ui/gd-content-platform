@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-// ─── Only 2026 content ────────────────────────────────────────────────────────
 const CUTOFF_DATE = new Date('2026-01-01T00:00:00.000Z').getTime();
 
 const PILLARS = [
@@ -40,6 +38,63 @@ export interface FeedItem {
   pillar: string;
   type: ArticleType;
   isGD: boolean;
+}
+
+// ─── Parse date from raw HTML ─────────────────────────────────────────────────
+
+function parseDateFromHtml(html: string): string {
+  // 1. JSON-LD datePublished (most reliable — used by Reuters, Forbes, AP, etc.)
+  for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      const obj = JSON.parse(m[1]);
+      const items = Array.isArray(obj) ? obj : [obj];
+      for (const item of items) {
+        const d = item.datePublished || item.dateCreated;
+        if (d) { const t = new Date(d); if (!isNaN(t.getTime())) return t.toISOString(); }
+      }
+    } catch { /* malformed JSON */ }
+  }
+  // 2. <meta> tags — try both attribute orderings
+  const metaRe = [
+    /meta[^>]+(?:property|name)=["'](?:article:published_time|datePublished|date|pubdate|publishdate|DC\.date\.issued)["'][^>]+content=["']([^"']+)["']/i,
+    /meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:article:published_time|datePublished|date|pubdate|publishdate|DC\.date\.issued)["']/i,
+  ];
+  for (const re of metaRe) {
+    const m = html.match(re);
+    if (m) { const t = new Date(m[1]); if (!isNaN(t.getTime())) return t.toISOString(); }
+  }
+  // 3. <time datetime="..."> element
+  const tm = html.match(/<time[^>]+datetime=["']([^"']+)["']/i);
+  if (tm) { const t = new Date(tm[1]); if (!isNaN(t.getTime())) return t.toISOString(); }
+  return '';
+}
+
+// Fetch HTML of an article and extract its publish date (4 s timeout)
+async function fetchDateFromPage(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept': 'text/html',
+      },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return '';
+    const html = await res.text();
+    return parseDateFromHtml(html);
+  } catch { return ''; }
+}
+
+// Run page fetches in parallel for all undated items
+async function hydrateDates(items: Array<{ url: string; publishedAt: string }>): Promise<void> {
+  await Promise.allSettled(
+    items
+      .filter(i => !i.publishedAt)
+      .map(async (i) => {
+        const d = await fetchDateFromPage(i.url);
+        if (d) i.publishedAt = d;
+      })
+  );
 }
 
 function detectType(url: string, title: string): ArticleType {
@@ -82,7 +137,7 @@ async function tavilySearch(query: string): Promise<Omit<FeedItem, 'id' | 'pilla
       body: JSON.stringify({
         api_key: apiKey,
         query,
-        search_depth: 'basic',
+        search_depth: 'advanced',
         max_results: 7,
         days: 7,
         include_domains: CREDIBLE_DOMAINS,
@@ -93,11 +148,9 @@ async function tavilySearch(query: string): Promise<Omit<FeedItem, 'id' | 'pilla
 
     return (data.results || [])
       .filter((r: { published_date?: string }) => {
-        // If Tavily provides a date, enforce the 2026 cutoff
-        // If no date is provided, trust Tavily's days:90 param and keep it
-        if (!r.published_date) return true;
+        if (!r.published_date) return true; // no date — trust Tavily's days:7 param
         const ts = new Date(r.published_date).getTime();
-        return isNaN(ts) || ts >= CUTOFF_DATE;
+        return isNaN(ts) || ts >= CUTOFF_DATE; // drop confirmed old articles
       })
       .map((r: { title: string; url: string; content: string; published_date?: string }) => ({
         title: r.title || '',
@@ -221,10 +274,18 @@ export async function POST() {
       });
     }
 
-    // Sort newest first
-    categorised.sort((a, b) =>
-      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    // Fetch publish dates from article HTML for items Tavily didn't date
+    await hydrateDates(categorised);
+
+    // Sort: dated articles newest first, undated articles at the bottom
+    categorised.sort((a, b) => {
+      const aT = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const bT = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      if (aT === 0 && bT === 0) return 0;
+      if (aT === 0) return 1;
+      if (bT === 0) return -1;
+      return bT - aT;
+    });
 
     return NextResponse.json({ items: categorised, fetchedAt: new Date().toISOString() });
   } catch (err) {

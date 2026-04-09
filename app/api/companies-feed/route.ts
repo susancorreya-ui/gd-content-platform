@@ -1,6 +1,53 @@
 import { NextResponse } from 'next/server';
 
+function parseDateFromHtml(html: string): string {
+  for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      const obj = JSON.parse(m[1]);
+      const items = Array.isArray(obj) ? obj : [obj];
+      for (const item of items) {
+        const d = item.datePublished || item.dateCreated;
+        if (d) { const t = new Date(d); if (!isNaN(t.getTime())) return t.toISOString(); }
+      }
+    } catch { /* malformed JSON */ }
+  }
+  const metaRe = [
+    /meta[^>]+(?:property|name)=["'](?:article:published_time|datePublished|date|pubdate|publishdate|DC\.date\.issued)["'][^>]+content=["']([^"']+)["']/i,
+    /meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:article:published_time|datePublished|date|pubdate|publishdate|DC\.date\.issued)["']/i,
+  ];
+  for (const re of metaRe) {
+    const m = html.match(re);
+    if (m) { const t = new Date(m[1]); if (!isNaN(t.getTime())) return t.toISOString(); }
+  }
+  const tm = html.match(/<time[^>]+datetime=["']([^"']+)["']/i);
+  if (tm) { const t = new Date(tm[1]); if (!isNaN(t.getTime())) return t.toISOString(); }
+  return '';
+}
+
+async function fetchDateFromPage(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept': 'text/html',
+      },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return '';
+    return parseDateFromHtml(await res.text());
+  } catch { return ''; }
+}
+
+async function hydrateDates(items: Array<{ url: string; publishedAt: string }>): Promise<void> {
+  await Promise.allSettled(
+    items
+      .filter(i => !i.publishedAt)
+      .map(async (i) => { const d = await fetchDateFromPage(i.url); if (d) i.publishedAt = d; })
+  );
+}
+
 const CUTOFF_DATE = new Date('2026-01-01T00:00:00.000Z').getTime();
+
 
 export interface CompanyDevelopment {
   id: string;
@@ -216,28 +263,26 @@ async function searchCompany(
   ];
 
   const searches = await Promise.allSettled([
-    // Search 1 — their own pages (newsroom, IR, corporate blog)
     fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         api_key: apiKey,
         query: `${company.name} technology digital AI retail media automation personalization 2026`,
-        search_depth: 'basic',
+        search_depth: 'advanced',
         max_results: 4,
         days: 90,
         include_domains: allDomains,
       }),
     }).then(r => r.json()),
 
-    // Search 2 — external credible press coverage
     fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         api_key: apiKey,
         query: `"${company.name}" grocery technology digital AI retail media 2026`,
-        search_depth: 'basic',
+        search_depth: 'advanced',
         max_results: 4,
         days: 90,
         include_domains: [
@@ -249,21 +294,21 @@ async function searchCompany(
     }).then(r => r.json()),
   ]);
 
-  const results: { title: string; url: string; content?: string; published_date?: string }[] = [];
+  const results: { title: string; url: string; content?: string; raw_content?: string; published_date?: string }[] = [];
   for (const s of searches) {
     if (s.status === 'fulfilled' && s.value?.results) {
       results.push(...s.value.results);
     }
   }
 
-  // Deduplicate by URL and enforce 2026 cutoff
+  // Deduplicate by URL and enforce cutoff on confirmed-dated articles
   const seen = new Set<string>();
-  return results
+  const developments: CompanyDevelopment[] = results
     .filter(r => {
       if (!r.url || !r.title || seen.has(r.url)) return false;
       if (r.published_date) {
         const ts = new Date(r.published_date).getTime();
-        if (!isNaN(ts) && ts < CUTOFF_DATE) return false; // confirmed old — drop
+        if (!isNaN(ts) && ts < CUTOFF_DATE) return false;
       }
       seen.add(r.url);
       return true;
@@ -283,6 +328,21 @@ async function searchCompany(
         type: detectType(r.url, r.title),
       } as CompanyDevelopment;
     });
+
+  // Fetch publish dates from article HTML for items Tavily didn't date
+  await hydrateDates(developments);
+
+  // Sort: dated newest first, undated at bottom
+  developments.sort((a, b) => {
+    const aT = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+    const bT = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+    if (aT === 0 && bT === 0) return 0;
+    if (aT === 0) return 1;
+    if (bT === 0) return -1;
+    return bT - aT;
+  });
+
+  return developments;
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────

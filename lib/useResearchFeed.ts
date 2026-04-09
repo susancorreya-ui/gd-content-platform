@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FeedItem } from '@/app/api/research-feed/route';
 
-const CACHE_KEY = 'gd_research_feed_v5';
+const CACHE_KEY = 'gd_research_feed_v13';
 const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours
 const CUTOFF_DATE = new Date('2026-01-01T00:00:00.000Z').getTime();
 

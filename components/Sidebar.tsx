@@ -3,8 +3,8 @@
 import { useRef, useState, useCallback } from 'react';
 import {
   BookOpen, Mail, Newspaper as NewsletterIcon, Video, Upload, TrendingUp,
-  ShoppingCart, MailCheck, LogOut, CalendarCheck, Rss, Building2, Calendar,
-  Library, BarChart2, ChevronRight,
+  ShoppingCart, MailCheck, LogOut, Rss, Building2,
+  Library, BarChart2, ChevronRight, Newspaper,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -27,8 +27,9 @@ const SECTIONS: Section[] = [
     id: 'research',
     label: 'Research',
     sub: [
-      { id: 'feed',      label: 'Intelligence', icon: <Rss size={14} /> },
-      { id: 'companies', label: 'Companies',    icon: <Building2 size={14} /> },
+      { id: 'feed',          label: 'Intelligence',  icon: <Rss size={14} /> },
+      { id: 'companies',     label: 'Companies',     icon: <Building2 size={14} /> },
+      { id: 'daily-summary', label: 'Daily Summary', icon: <Newspaper size={14} /> },
     ],
   },
   {
@@ -53,12 +54,9 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    id: 'schedule',
-    label: 'Schedule',
-    sub: [
-      { id: 'social-scheduler', label: 'Social Schedule',  icon: <CalendarCheck size={14} /> },
-      { id: 'website-schedule', label: 'Website Schedule', icon: <Calendar size={14} /> },
-    ],
+    id: 'social-scheduler',
+    label: 'Social Media Scheduler',
+    sub: [],
   },
 ];
 

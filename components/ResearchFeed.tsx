@@ -47,6 +47,13 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
+function formatDate(iso: string): string {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch { return ''; }
+}
+
 function timeSince(iso: string): string {
   if (!iso) return '';
   const diff = Date.now() - new Date(iso).getTime();
@@ -190,9 +197,8 @@ function DailySummaryModal({ isGenerating, entry, error, onClose, onDelete, onSa
 function FeedCard({ item, onSendToPipeline }: { item: FeedItem; onSendToPipeline: (topic: string, pillar: string) => void }) {
   const pillarColor = PILLAR_COLORS[item.pillar] || '#00AA50';
   const typeConfig = TYPE_CONFIG[item.type] || TYPE_CONFIG.news;
-  const age = timeAgo(item.publishedAt);
+  const date = formatDate(item.publishedAt);
   const [generating, setGenerating] = useState(false);
-  const [expanded, setExpanded] = useState(false);
 
   const handlePipeline = async () => {
     setGenerating(true);
@@ -237,10 +243,10 @@ function FeedCard({ item, onSendToPipeline }: { item: FeedItem; onSendToPipeline
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={faviconUrl(item.sourceDomain)} alt="" width={14} height={14} className="rounded-sm flex-shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           <span className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{item.source}</span>
-          {age && (
+          {date && (
             <>
               <span style={{ color: 'var(--text-secondary)', opacity: 0.4 }}>·</span>
-              <span className="text-[12px] font-medium" style={{ color: 'var(--accent)' }}>{age}</span>
+              <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{date}</span>
             </>
           )}
         </div>
@@ -258,21 +264,14 @@ function FeedCard({ item, onSendToPipeline }: { item: FeedItem; onSendToPipeline
 
         {/* Row 4: description */}
         {item.description && (
-          <p className={`text-[12px] leading-relaxed ${expanded ? '' : 'line-clamp-2'}`} style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-[12px] leading-relaxed line-clamp-3" style={{ color: 'var(--text-secondary)' }}>
             {item.description}
           </p>
         )}
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: 'var(--border)' }}>
-        <button
-          onClick={() => setExpanded(o => !o)}
-          className="flex items-center gap-1 text-[11px] transition-opacity hover:opacity-70"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          {expanded ? <><ChevronUp size={12} />Less</> : <><ChevronDown size={12} />Read more</>}
-        </button>
+      <div className="flex items-center justify-end px-4 py-2.5 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-2">
           <a href={item.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-secondary)' }} onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-primary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-secondary)'; }}>
             <ExternalLink size={12} />
@@ -493,9 +492,17 @@ export default function ResearchFeed({ onSendToPipeline, onSaveToLibrary }: Rese
     setModalOpen(false); setGeneratedEntry(null);
   };
 
-  // Filtering
+  // Filtering + sort newest first
   let filtered = activePillar === 'All' ? items : items.filter(i => i.pillar === activePillar);
   if (activeType !== 'all') filtered = filtered.filter(i => i.type === activeType);
+  filtered = [...filtered].sort((a, b) => {
+    const aT = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+    const bT = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+    if (aT === 0 && bT === 0) return 0;
+    if (aT === 0) return 1;
+    if (bT === 0) return -1;
+    return bT - aT;
+  });
 
   const pillarCounts: Record<string, number> = { All: items.length };
   for (const p of PILLARS) pillarCounts[p] = items.filter(i => i.pillar === p).length;

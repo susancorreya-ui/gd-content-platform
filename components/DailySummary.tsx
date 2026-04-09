@@ -113,7 +113,8 @@ export default function DailySummary() {
 
   useEffect(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem('gd_approved_summaries') || '[]');
+      const stored: DailySummaryEntry[] = JSON.parse(localStorage.getItem('gd_approved_summaries') || '[]');
+      stored.sort((a, b) => a.date.localeCompare(b.date));
       setEntries(stored);
     } catch {}
   }, []);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Zap, ArrowRight, RefreshCw, TrendingUp } from 'lucide-react';
+import { Zap, ArrowRight, RefreshCw, TrendingUp, BookOpen, BarChart2, Video, Library, Upload, Mail, Newspaper as NewsletterIcon, MailCheck, CalendarDays, ChevronRight } from 'lucide-react';
 import { FeedItem } from '@/app/api/research-feed/route';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -16,12 +16,12 @@ const PILLAR_COLORS: Record<string, string> = {
 };
 
 const STATS = [
-  { prefix: '$', numeric: 136,  suffix: 'B',  decimals: 0, label: 'AI value unlock in grocery by 2030',              color: '#6366f1', trend: 'McKinsey, 2024'        },
-  { prefix: '$', numeric: 126,  suffix: 'B',  decimals: 0, label: 'Digital grocery sales — 13.4% of total',           color: '#3b82f6', trend: '↑ 13.4% share'        },
-  { prefix: '',  numeric: 1.5,  suffix: '×',  decimals: 1, label: 'More spend from omnichannel vs single-channel',    color: '#10b981', trend: 'vs in-store only'     },
-  { prefix: '',  numeric: 86,   suffix: '%',  decimals: 0, label: 'C-suite execs prioritising AI for efficiency',     color: '#f59e0b', trend: '↑ from 71% in 2023'  },
-  { prefix: '$', numeric: 8.5,  suffix: 'B',  decimals: 1, label: 'US grocery retail media market size',              color: '#8b5cf6', trend: '↑ 31% YoY'           },
-  { prefix: '',  numeric: 92,   suffix: '%',  decimals: 0, label: 'Shoppers say grocery lacks personalisation',        color: '#ec4899', trend: 'Opportunity gap'     },
+  { prefix: '',  numeric: 93,   suffix: '%',  decimals: 0, label: 'Grocery C-Suite say adopting AI will be a necessity to compete',       color: '#6366f1', trend: 'AI in Grocery 2025 · Grocery Doppio'                      },
+  { prefix: '',  numeric: 9.7,  suffix: '%',  decimals: 1, label: 'Expected increase in digital grocery sales in 2025',                   color: '#3b82f6', trend: '2025 Digital Grocery Outlook · Grocery Doppio'           },
+  { prefix: '',  numeric: 71,   suffix: '%',  decimals: 0, label: 'Grocers planning to invest in advanced fulfillment solutions in 2025',  color: '#f59e0b', trend: '2025 Digital Grocery Outlook · Grocery Doppio'           },
+  { prefix: '$', numeric: 8.5,  suffix: 'B',  decimals: 1, label: 'Projected size of the grocery retail media network market in 2024',    color: '#8b5cf6', trend: 'In-Store Media Monetization · Grocery Doppio'           },
+  { prefix: '',  numeric: 53,   suffix: '%',  decimals: 0, label: 'Grocers investing in AI-powered personalization as new technology',    color: '#ec4899', trend: '2025 Digital Grocery Outlook · Grocery Doppio'           },
+  { prefix: '$', numeric: 72.1, suffix: 'B',  decimals: 1, label: 'AI value unlock potential in grocery supply chain alone by 2030',      color: '#10b981', trend: 'AI in Grocery 2025 · Grocery Doppio'                      },
 ];
 
 
@@ -292,8 +292,8 @@ function useCountUp(target: number, active: boolean, duration = 1300, decimals =
 // ─── Stat Tile ────────────────────────────────────────────────────────────────
 
 function StatTile({
-  prefix, numeric, suffix, decimals, label, color, trend, index,
-}: { prefix: string; numeric: number; suffix: string; decimals: number; label: string; color: string; trend: string; index: number }) {
+  prefix, numeric, suffix, decimals, label, color, trend, index, sourceUrl,
+}: { prefix: string; numeric: number; suffix: string; decimals: number; label: string; color: string; trend: string; index: number; sourceUrl?: string }) {
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
   const count = useCountUp(numeric, visible, 1300, decimals);
@@ -353,12 +353,27 @@ function StatTile({
         {label}
       </p>
 
-      {/* Trend badge */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-        <TrendingUp size={10} style={{ color, opacity: 0.7 }} />
-        <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          {trend}
-        </span>
+      {/* Trend badge + source link */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '5px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <TrendingUp size={10} style={{ color, opacity: 0.7 }} />
+          <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            {trend}
+          </span>
+        </div>
+        {sourceUrl && (
+          <a
+            href={sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{ fontSize: '10px', fontWeight: 600, color, opacity: 0.7, textDecoration: 'none', whiteSpace: 'nowrap' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.7'; }}
+          >
+            Source ↗
+          </a>
+        )}
       </div>
     </div>
   );
@@ -484,6 +499,141 @@ function SignalCard({ item, onNavigate }: { item: FeedItem; onNavigate: (id: str
   );
 }
 
+// ─── What do you want to do today? ───────────────────────────────────────────
+
+const TODAY_ACTIONS: {
+  category: string;
+  color: string;
+  items: { id: string; label: string; icon: React.ReactNode; description: string }[];
+}[] = [
+  {
+    category: 'Content',
+    color: '#6366f1',
+    items: [
+      { id: 'blog',               label: 'Blog Post',          icon: <BookOpen size={18} />,       description: 'Long-form article for the GD blog' },
+      { id: 'grocer-performance', label: 'Grocer Performance', icon: <TrendingUp size={18} />,     description: 'Grocer-specific performance report' },
+      { id: 'market-snapshot',    label: 'Market Snapshot',    icon: <BarChart2 size={18} />,      description: 'Quick-hit market intelligence brief' },
+      { id: 'video-script',       label: 'Video Script',       icon: <Video size={18} />,          description: 'Script for a short-form video' },
+      { id: 'library',            label: 'Library',            icon: <Library size={18} />,        description: 'Browse and manage saved content' },
+      { id: 'upload',             label: 'Upload Document',    icon: <Upload size={18} />,         description: 'Add a reference document to the platform' },
+    ],
+  },
+  {
+    category: 'Email',
+    color: '#3b82f6',
+    items: [
+      { id: 'email',          label: 'Email',          icon: <Mail size={18} />,         description: 'One-off email for clients or prospects' },
+      { id: 'newsletter',     label: 'Newsletter',     icon: <NewsletterIcon size={18} />, description: 'Weekly or monthly subscriber newsletter' },
+      { id: 'email-sequence', label: 'Email Sequence', icon: <MailCheck size={18} />,    description: 'Multi-step nurture or drip sequence' },
+    ],
+  },
+  {
+    category: 'Social Media',
+    color: '#10b981',
+    items: [
+      { id: 'social-scheduler', label: 'Social Media Scheduler', icon: <CalendarDays size={18} />, description: 'Plan and schedule social media posts' },
+    ],
+  },
+];
+
+function TodaySection({ onNavigate }: { onNavigate: (id: string) => void }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  return (
+    <div
+      className="mb-8 p-5 rounded-2xl"
+      style={{
+        background: 'linear-gradient(135deg, var(--surface) 60%, rgba(99,102,241,0.06))',
+        border: '1px solid var(--border)',
+        boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
+      }}
+    >
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: 'var(--accent)' }}>
+            Quick Start
+          </p>
+          <h2 className="text-[17px] font-bold" style={{ color: 'var(--text-primary)' }}>
+            What do you want to create today?
+          </h2>
+        </div>
+        <Zap size={20} style={{ color: 'var(--accent)', opacity: 0.5 }} />
+      </div>
+
+      {/* Category toggle buttons */}
+      <div className="flex gap-2 mb-3">
+        {TODAY_ACTIONS.map(({ category, color }) => {
+          const isOpen = open === category;
+          return (
+            <button
+              key={category}
+              onClick={() => setOpen(isOpen ? null : category)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '7px 14px',
+                borderRadius: '8px',
+                background: isOpen ? color : 'var(--background)',
+                border: `1px solid ${isOpen ? color : 'var(--border)'}`,
+                color: isOpen ? 'white' : 'var(--text-secondary)',
+                fontSize: '12.5px', fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: isOpen ? `0 4px 12px ${color}30` : 'none',
+              }}
+            >
+              {category}
+              <ChevronRight
+                size={13}
+                style={{
+                  transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s ease',
+                  opacity: isOpen ? 1 : 0.5,
+                }}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Expanded sub-items */}
+      {TODAY_ACTIONS.map(({ category, color, items }) =>
+        open !== category ? null : (
+          <div
+            key={category}
+            className="flex flex-wrap gap-2 p-3 rounded-xl"
+            style={{ background: color + '08', border: `1px solid ${color}20` }}
+          >
+            {items.map(({ id, label, icon }) => (
+              <button
+                key={id}
+                onClick={() => onNavigate(id)}
+                onMouseEnter={() => setHovered(id)}
+                onMouseLeave={() => setHovered(null)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 12px 6px 9px',
+                  borderRadius: '7px',
+                  background: hovered === id ? color + '18' : 'var(--surface)',
+                  border: `1px solid ${hovered === id ? color + '40' : 'var(--border)'}`,
+                  transition: 'all 0.13s ease',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ color, display: 'flex', alignItems: 'center' }}>{icon}</span>
+                <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  {label}
+                </span>
+              </button>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 interface InsightsHomeProps {
@@ -514,6 +664,9 @@ export default function InsightsHome({ onNavigate }: InsightsHomeProps) {
             AI-powered grocery intelligence — research, create, and schedule content in one place.
           </p>
         </div>
+
+        {/* ── What do you want to do today? ───────────────────────────────── */}
+        <TodaySection onNavigate={onNavigate} />
 
         {/* ── Industry Benchmarks ─────────────────────────────────────────── */}
         <div className="mb-8">

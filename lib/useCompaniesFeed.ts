@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CompanyUpdate } from '@/app/api/companies-feed/route';
 
-const CACHE_KEY = 'gd_companies_feed_v5';
+const CACHE_KEY = 'gd_companies_feed_v9';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 const CUTOFF_DATE = new Date('2026-01-01T00:00:00.000Z').getTime();
 
