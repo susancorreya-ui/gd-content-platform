@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
+export const maxDuration = 60; // seconds (requires Vercel Pro; 10s on Hobby)
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const CUTOFF_DATE = new Date('2026-01-01T00:00:00.000Z').getTime();
 
