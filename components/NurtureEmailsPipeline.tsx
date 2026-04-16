@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import {
   Sparkles, BookOpen, AlertCircle, Copy, Check, ChevronRight,
-  Mail, Clock, Users, MessageSquare, Video, Calendar, Megaphone,
+  Mail, Clock, Users, MessageSquare, Video, Calendar,
 } from 'lucide-react';
 import { LibraryItem } from '@/types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
-type SequenceMode = 'event' | 'lead' | 'promo';
+type SequenceMode = 'event' | 'lead';
 
 interface ParsedEmail {
   label: string;
@@ -48,12 +48,6 @@ const ENTRY_POINTS = [
   'Inbound sales contact',
 ];
 
-const PROMO_EMAIL_META = [
-  { label: '2 Weeks Out',  icon: Calendar,      color: '#6366f1', note: 'Full intro — hook, speakers, all bullets, [Register Now]' },
-  { label: '1 Week Out',   icon: Sparkles,       color: '#3b82f6', note: 'Lead with a data point — 3 bullets, [Save Your Spot]' },
-  { label: '3 Days Out',   icon: Clock,          color: '#f59e0b', note: 'Light urgency — 2–3 bullets, [Register Now]' },
-  { label: 'Day Of',       icon: Megaphone,      color: '#ef4444', note: 'Day-of reminder — today at [time], [Join the Session]' },
-];
 
 const AUDIENCE_TYPES = [
   'Grocery retailer — C-suite (CEO, CDO, CTO, CIO)',
@@ -196,12 +190,10 @@ function EmailViewer({ emails, meta }: {
 // ─── IdlePlaceholder ────────────────────────────────────────────────────────────
 
 function IdlePlaceholder({ mode }: { mode: SequenceMode }) {
-  const items = mode === 'event' ? EVENT_EMAIL_META : mode === 'promo' ? PROMO_EMAIL_META : LEAD_EMAIL_META;
-  const title = mode === 'event' ? 'Event Nurture Sequence' : mode === 'promo' ? 'Event Promo Sequence' : 'Lead Nurture Sequence';
+  const items = mode === 'event' ? EVENT_EMAIL_META : LEAD_EMAIL_META;
+  const title = mode === 'event' ? 'Event Nurture Sequence' : 'Lead Nurture Sequence';
   const description = mode === 'event'
-    ? 'Fill in your event details to generate all 4 post-event emails — ready for your ESP.'
-    : mode === 'promo'
-    ? 'Fill in your event details to generate a 4-email pre-event promotional sequence.'
+    ? 'Fill in your event details to generate all 4 emails — ready for your ESP.'
     : 'Specify the entry point and audience to generate a 5-email nurture arc.';
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-12 py-16 gap-8">
@@ -254,18 +246,6 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
   const [speakers, setSpeakers]         = useState('');
   const [joinLink, setJoinLink]         = useState('');
 
-  // ── Promo fields ─────────────────────────────────────────────────────────────
-  const [promoEventType, setPromoEventType] = useState<'webinar' | 'in-person'>('webinar');
-  const [promoEventName, setPromoEventName] = useState('');
-  const [promoEventShortName, setPromoEventShortName] = useState('');
-  const [promoEventDate, setPromoEventDate] = useState('');
-  const [promoEventTime, setPromoEventTime] = useState('12:00 PM');
-  const [promoTimezone, setPromoTimezone] = useState('ET');
-  const [promoSessionTopics, setPromoSessionTopics] = useState('');
-  const [promoSpeakers, setPromoSpeakers] = useState('');
-  const [promoCohost, setPromoCohost] = useState('');
-  const [promoRegistrationUrl, setPromoRegistrationUrl] = useState('');
-
   // ── Lead fields ──────────────────────────────────────────────────────────────
   const [entryPoint, setEntryPoint]   = useState('');
   const [audience, setAudience]       = useState('');
@@ -301,23 +281,7 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
     setSaved(false);
 
     try {
-      if (mode === 'promo') {
-        const res = await fetch('/api/pipeline/promo-emails', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            eventName: promoEventName, eventShortName: promoEventShortName,
-            eventDate: promoEventDate, eventTime: promoEventTime, timezone: promoTimezone,
-            eventType: promoEventType, sessionTopics: promoSessionTopics,
-            speakers: promoSpeakers, cohost: promoCohost, registrationUrl: promoRegistrationUrl,
-            senderName, senderTitle, senderEmail,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        setEmails(data.emails || []);
-        setRawOutput(data.raw || '');
-      } else if (mode === 'event') {
+      if (mode === 'event') {
         const res = await fetch('/api/pipeline/nurture-emails', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -353,8 +317,6 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
     if (!rawOutput) return;
     const title = mode === 'event'
       ? `${eventShortName || eventName} — Event Nurture`
-      : mode === 'promo'
-      ? `${promoEventShortName || promoEventName} — Event Promo`
       : `${topic || entryPoint} — Lead Nurture`;
     onSaveToLibrary({ contentType: 'email-sequence', title, output: rawOutput, metadata: { mode }, status: 'saved' });
     setSaved(true);
@@ -364,21 +326,13 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
   const canGenerate = !isLoading && senderName.trim() && (
     mode === 'event'
       ? (eventName.trim() && eventDate.trim())
-      : mode === 'promo'
-      ? (promoEventName.trim() && promoEventDate.trim())
       : (entryPoint.trim() && audience.trim() && topic.trim())
   );
 
-  const currentMeta = mode === 'event' ? EVENT_EMAIL_META : mode === 'promo' ? PROMO_EMAIL_META : LEAD_EMAIL_META;
-  const loadingLabel = mode === 'event'
-    ? 'Writing 4 emails…'
-    : mode === 'promo'
-    ? 'Writing promo sequence…'
-    : 'Writing 5-email sequence…';
+  const currentMeta = mode === 'event' ? EVENT_EMAIL_META : LEAD_EMAIL_META;
+  const loadingLabel = mode === 'event' ? 'Writing 4 emails…' : 'Writing 5-email sequence…';
   const loadingSub = mode === 'event'
     ? '1-day reminder · 30-min alert · Missed you · Thank you'
-    : mode === 'promo'
-    ? '2 weeks out · 1 week out · 3 days out · Day of'
     : 'Welcome · Insight · Case study · Offer · Follow-up';
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -399,11 +353,10 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
           </div>
 
           {/* Mode toggle */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {([
-              { id: 'lead'  as SequenceMode, label: 'Lead Nurture',  icon: Users,     sub: '5 emails · entry point + audience' },
-              { id: 'promo' as SequenceMode, label: 'Event Promo',   icon: Megaphone, sub: '4 emails · pre-event build-up' },
-              { id: 'event' as SequenceMode, label: 'Event Nurture', icon: Calendar,  sub: '4 emails · post-event follow-up' },
+              { id: 'lead'  as SequenceMode, label: 'Lead Nurture',  icon: Users,    sub: '5 emails · entry point + audience' },
+              { id: 'event' as SequenceMode, label: 'Event Nurture', icon: Calendar, sub: '4 emails · in-person or webinar' },
             ]).map(({ id, label, icon: Icon, sub }) => (
               <button key={id} onClick={() => switchMode(id)}
                 className="flex flex-col items-start gap-1 py-3 px-3 rounded-xl text-left transition-all"
@@ -511,112 +464,6 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
                 <input type="url" className="w-full text-sm rounded-lg px-3 py-2.5 outline-none transition-colors"
                   style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   placeholder="https://..." value={joinLink} onChange={e => setJoinLink(e.target.value)}
-                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                  onBlur={e => (e.target.style.borderColor = 'var(--border)')} disabled={isLoading} />
-              </div>
-            </>
-          )}
-
-          {/* ── Promo mode fields ── */}
-          {mode === 'promo' && (
-            <>
-              {/* Event type */}
-              <div className="grid grid-cols-2 gap-2">
-                {([
-                  { id: 'webinar' as const,   label: 'Webinar',         icon: Video },
-                  { id: 'in-person' as const, label: 'In-Person Event', icon: Users },
-                ]).map(({ id, label, icon: Icon }) => (
-                  <button key={id} onClick={() => setPromoEventType(id)}
-                    className="flex items-center gap-2 py-2.5 px-3 rounded-lg text-xs font-medium transition-all"
-                    style={{
-                      background: promoEventType === id ? '#f0eeff' : 'var(--background)',
-                      border: `1px solid ${promoEventType === id ? 'var(--accent)' : 'var(--border)'}`,
-                      color: promoEventType === id ? 'var(--accent)' : 'var(--text-secondary)',
-                    }}>
-                    <Icon size={13} />{label}
-                  </button>
-                ))}
-              </div>
-
-              {[
-                { label: 'Full event name *', value: promoEventName, set: setPromoEventName, placeholder: 'e.g. Decoding Q1 2025: Tariffs, Digital & Omnichannel in Grocery' },
-                { label: 'Short name (for subject lines)', value: promoEventShortName, set: setPromoEventShortName, placeholder: 'e.g. Decoding Q1 2025' },
-              ].map(({ label, value, set, placeholder }) => (
-                <div key={label}>
-                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>{label}</label>
-                  <input type="text" className="w-full text-sm rounded-lg px-3 py-2.5 outline-none transition-colors"
-                    style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                    placeholder={placeholder} value={value} onChange={e => set(e.target.value)}
-                    onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                    onBlur={e => (e.target.style.borderColor = 'var(--border)')}
-                    disabled={isLoading} />
-                </div>
-              ))}
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>Date *</label>
-                  <input type="text" className="w-full text-sm rounded-lg px-3 py-2.5 outline-none transition-colors"
-                    style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                    placeholder="e.g. Thursday, 10 April 2025" value={promoEventDate} onChange={e => setPromoEventDate(e.target.value)}
-                    onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                    onBlur={e => (e.target.style.borderColor = 'var(--border)')} disabled={isLoading} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>Time</label>
-                  <div className="flex gap-1.5">
-                    <input type="text" className="flex-1 text-sm rounded-lg px-3 py-2.5 outline-none transition-colors"
-                      style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                      placeholder="12:00 PM" value={promoEventTime} onChange={e => setPromoEventTime(e.target.value)}
-                      onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                      onBlur={e => (e.target.style.borderColor = 'var(--border)')} disabled={isLoading} />
-                    <select className="text-xs rounded-lg px-2 py-2.5 outline-none"
-                      style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                      value={promoTimezone} onChange={e => setPromoTimezone(e.target.value)} disabled={isLoading}>
-                      {['ET', 'CT', 'MT', 'PT', 'GMT', 'BST', 'CET'].map(tz => <option key={tz}>{tz}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>Key discussion topics / agenda</label>
-                <textarea rows={4} className="w-full text-sm rounded-lg px-3 py-2.5 resize-none outline-none transition-colors"
-                  style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  placeholder={"One per line:\nHow tariffs are reshaping pricing and supply chain\nWhy omnichannel shoppers drive profitability"}
-                  value={promoSessionTopics} onChange={e => setPromoSessionTopics(e.target.value)}
-                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                  onBlur={e => (e.target.style.borderColor = 'var(--border)')} disabled={isLoading} />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>Speakers (name + org)</label>
-                <textarea rows={3} className="w-full text-sm rounded-lg px-3 py-2.5 resize-none outline-none transition-colors"
-                  style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  placeholder={"Doug Baker, FMI\nGaurav Pant, Incisiv\nGary Hawkins, CART"}
-                  value={promoSpeakers} onChange={e => setPromoSpeakers(e.target.value)}
-                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                  onBlur={e => (e.target.style.borderColor = 'var(--border)')} disabled={isLoading} />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
-                  Co-host organisation <span className="font-normal" style={{ color: 'var(--text-secondary)' }}>(optional)</span>
-                </label>
-                <input type="text" className="w-full text-sm rounded-lg px-3 py-2.5 outline-none transition-colors"
-                  style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  placeholder="e.g. FMI, RELEX, Blue Yonder" value={promoCohost} onChange={e => setPromoCohost(e.target.value)}
-                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                  onBlur={e => (e.target.style.borderColor = 'var(--border)')} disabled={isLoading} />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
-                  Registration URL <span className="font-normal" style={{ color: 'var(--text-secondary)' }}>(optional)</span>
-                </label>
-                <input type="url" className="w-full text-sm rounded-lg px-3 py-2.5 outline-none transition-colors"
-                  style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  placeholder="https://..." value={promoRegistrationUrl} onChange={e => setPromoRegistrationUrl(e.target.value)}
                   onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
                   onBlur={e => (e.target.style.borderColor = 'var(--border)')} disabled={isLoading} />
               </div>
