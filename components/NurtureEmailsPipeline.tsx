@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   Sparkles, BookOpen, AlertCircle, Copy, Check, ChevronRight,
-  Mail, Clock, Users, MessageSquare, Video, Calendar,
+  Mail, Clock, Users, MessageSquare, Video, Calendar, Link, Loader2,
 } from 'lucide-react';
 import { LibraryItem } from '@/types';
 
@@ -237,6 +237,10 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
 
   // ── Event fields ─────────────────────────────────────────────────────────────
   const [eventType, setEventType]       = useState<'webinar' | 'in-person'>('webinar');
+  const [eventPageUrl, setEventPageUrl] = useState('');
+  const [eventPageContent, setEventPageContent] = useState('');
+  const [fetchingUrl, setFetchingUrl]   = useState(false);
+  const [fetchError, setFetchError]     = useState('');
   const [eventName, setEventName]       = useState('');
   const [eventShortName, setEventShortName] = useState('');
   const [eventDate, setEventDate]       = useState('');
@@ -272,6 +276,33 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
     setSaved(false);
   };
 
+  // ── Fetch event page URL ─────────────────────────────────────────────────────
+
+  const handleFetchUrl = async () => {
+    if (!eventPageUrl.trim()) return;
+    setFetchingUrl(true);
+    setFetchError('');
+    try {
+      const res = await fetch('/api/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: eventPageUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch URL');
+      setEventPageContent(data.content || '');
+      // Auto-fill event name from first non-empty line if blank
+      if (!eventName.trim() && data.content) {
+        const firstLine = data.content.split('\n').find((l: string) => l.trim().length > 5);
+        if (firstLine) setEventName(firstLine.trim().slice(0, 120));
+      }
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : 'Fetch failed');
+    } finally {
+      setFetchingUrl(false);
+    }
+  };
+
   // ── Generate ─────────────────────────────────────────────────────────────────
 
   const handleGenerate = async () => {
@@ -288,7 +319,7 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
           body: JSON.stringify({
             eventName, eventShortName, eventDate, eventTime, timezone,
             sessionTopics, speakers, senderName, senderTitle, senderEmail, joinLink,
-            eventType,
+            eventType, eventPageContent,
           }),
         });
         const data = await res.json();
@@ -378,6 +409,37 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
           {/* ── Event mode fields ── */}
           {mode === 'event' && (
             <>
+              {/* URL fetch */}
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
+                  Event page URL <span className="font-normal" style={{ color: 'var(--text-secondary)' }}>(optional — auto-fills details)</span>
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 flex items-center gap-2 px-3 rounded-lg"
+                    style={{ background: 'var(--background)', border: `1px solid ${eventPageContent ? '#22c55e' : 'var(--border)'}` }}>
+                    <Link size={13} style={{ color: eventPageContent ? '#22c55e' : 'var(--text-secondary)', flexShrink: 0 }} />
+                    <input type="url" className="flex-1 text-sm py-2.5 outline-none bg-transparent"
+                      style={{ color: 'var(--text-primary)' }}
+                      placeholder="https://..."
+                      value={eventPageUrl} onChange={e => { setEventPageUrl(e.target.value); setEventPageContent(''); setFetchError(''); }}
+                      disabled={isLoading || fetchingUrl} />
+                  </div>
+                  <button onClick={handleFetchUrl} disabled={!eventPageUrl.trim() || fetchingUrl || isLoading}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium flex-shrink-0 transition-all"
+                    style={{
+                      background: eventPageContent ? '#e8fdf0' : '#f0eeff',
+                      color: eventPageContent ? '#16a34a' : 'var(--accent)',
+                      opacity: (!eventPageUrl.trim() || isLoading) ? 0.5 : 1,
+                      cursor: (!eventPageUrl.trim() || isLoading) ? 'not-allowed' : 'pointer',
+                    }}>
+                    {fetchingUrl ? <Loader2 size={12} className="animate-spin" /> : eventPageContent ? <Check size={12} /> : <Sparkles size={12} />}
+                    {fetchingUrl ? 'Fetching…' : eventPageContent ? 'Fetched' : 'Fetch'}
+                  </button>
+                </div>
+                {fetchError && <p className="text-[11px] mt-1" style={{ color: '#c0392b' }}>{fetchError}</p>}
+                {eventPageContent && <p className="text-[11px] mt-1" style={{ color: '#16a34a' }}>Page content fetched — will be used to enrich the emails.</p>}
+              </div>
+
               {/* Event type */}
               <div className="grid grid-cols-2 gap-2">
                 {([

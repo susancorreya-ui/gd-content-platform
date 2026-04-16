@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     senderTitle,
     senderEmail,
     joinLink,
+    eventPageContent,
   }: {
     eventName: string;
     eventShortName: string;
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
     senderTitle?: string;
     senderEmail?: string;
     joinLink?: string;
+    eventPageContent?: string;
   } = await req.json();
 
   if (!eventName || !eventDate) {
@@ -60,6 +62,7 @@ EVENT DETAILS:
 - Speakers / panelists: ${speakers || 'Industry experts'}
 - Sender: ${senderName}${senderTitle ? `, ${senderTitle}` : ''}${senderEmail ? ` (${senderEmail})` : ''}
 - Join link: ${joinLinkText}
+${eventPageContent ? `\nEVENT PAGE CONTENT (use this to extract speakers, topics, agenda, and key details — prioritise over the fields above where more specific):\n${eventPageContent.slice(0, 6000)}` : ''}
 
 Write each email in this exact format with these exact separators:
 
