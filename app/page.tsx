@@ -7,7 +7,8 @@ import ResearchUpload from '@/components/ResearchUpload';
 import ResearchFeed from '@/components/ResearchFeed';
 import CompaniesTracker from '@/components/CompaniesTracker';
 import InsightsHome from '@/components/InsightsHome';
-import EmailSequence from '@/components/EmailSequence';
+import NurtureEmailsPipeline from '@/components/NurtureEmailsPipeline';
+import EmailPipeline from '@/components/EmailPipeline';
 import SocialScheduler from '@/components/SocialScheduler';
 import WebsiteSchedule from '@/components/WebsiteSchedule';
 import ContentLibrary from '@/components/ContentLibrary';
@@ -17,7 +18,7 @@ import { useLibrary } from '@/lib/useLibrary';
 import { useResearchDocs } from '@/lib/useResearchDocs';
 
 const CREATOR_TYPES: ContentType[] = [
-  'blog', 'grocer-performance', 'market-snapshot', 'newsletter', 'email', 'video-script',
+  'blog', 'grocer-performance', 'market-snapshot', 'newsletter', 'video-script',
 ];
 
 const VALID_VIEWS = [
@@ -75,7 +76,10 @@ export default function Home() {
       );
     }
     if (activeView === 'email-sequence') {
-      return <EmailSequence onSaveToLibrary={handleSaveToLibrary} />;
+      return <NurtureEmailsPipeline onSaveToLibrary={handleSaveToLibrary} />;
+    }
+    if (activeView === 'email') {
+      return <EmailPipeline onSaveToLibrary={handleSaveToLibrary} />;
     }
     if (activeView === 'social-scheduler') {
       return <SocialScheduler researchDocs={researchDocs} />;

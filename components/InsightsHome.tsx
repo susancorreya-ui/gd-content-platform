@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Zap, ArrowRight, RefreshCw, TrendingUp, BookOpen, BarChart2, Video, Library, Upload, Mail, Newspaper as NewsletterIcon, MailCheck, CalendarDays, ChevronRight } from 'lucide-react';
 import { FeedItem } from '@/app/api/research-feed/route';
 
@@ -641,8 +642,17 @@ interface InsightsHomeProps {
 }
 
 export default function InsightsHome({ onNavigate }: InsightsHomeProps) {
+  const router = useRouter();
   const { signals, fetchedAt } = useLatestSignals();
   const [signalTime, setSignalTime] = useState('');
+
+  const handleNavigate = useCallback((id: string) => {
+    if (id === 'social-scheduler') {
+      router.push('/scheduler');
+    } else {
+      onNavigate(id);
+    }
+  }, [onNavigate, router]);
 
   useEffect(() => {
     if (fetchedAt) setSignalTime(timeAgo(fetchedAt));
@@ -666,7 +676,7 @@ export default function InsightsHome({ onNavigate }: InsightsHomeProps) {
         </div>
 
         {/* ── What do you want to do today? ───────────────────────────────── */}
-        <TodaySection onNavigate={onNavigate} />
+        <TodaySection onNavigate={handleNavigate} />
 
         {/* ── Industry Benchmarks ─────────────────────────────────────────── */}
         <div className="mb-8">

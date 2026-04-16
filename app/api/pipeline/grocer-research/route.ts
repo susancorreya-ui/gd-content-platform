@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { webSearch } from '@/lib/webSearch';
 
+export const maxDuration = 60;
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 interface RawResult {
@@ -138,23 +140,32 @@ ${rawContent}
 
 ${knownData?.trim() ? `Analyst notes:\n${knownData}\n` : ''}
 
-Extract all available facts into this exact JSON structure. Each array should contain short, specific bullet points with numbers where available. If a section has no data, leave its array empty. Do not fabricate any numbers.
+Extract all available facts into this exact JSON structure. Each array should contain short, specific bullet points with actual figures and facts from the content. Do not fabricate any numbers.
 
 IMPORTANT: The "period" field must identify exactly which reporting period this data covers (e.g. "Q4 FY2025", "Q2 2026", "FY2024", "Third Quarter 2025"). Derive this from the content — do not guess.
+
+For each section, extract ANY relevant mention — even partial or indirect references count. For example:
+- "digitalCommerce": any mention of online sales, ecommerce, app, digital orders, click-and-collect, BOPIS, or delivery
+- "fulfilment": any mention of fulfilment centres, dark stores, same-day, last-mile, delivery speed, or third-party (Instacart, DoorDash)
+- "loyalty": any mention of loyalty members, rewards, personalisation, offers, or programme changes
+- "retailMedia": any mention of retail media, advertising revenue, CPG partnerships, or sponsored placements
+- "aiTechnology": any mention of AI, automation, machine learning, pricing algorithms, robots, or in-store technology
+
+If a section has genuinely no mention at all in the content, leave its array empty.
 
 {
   "period": "the specific reporting period found in the content (e.g. Q4 FY2025, Q1 2026)",
   "headline": "one-line summary of the headline result with the period (e.g. 'Kroger Q4 FY2025: comp sales +2.8%, digital sales +18%')",
   "sections": {
-    "financials": ["revenue figure", "comparable sales growth", "gross margin", "operating income", "EPS", "guidance if stated"],
-    "digitalCommerce": ["ecommerce sales growth %", "online order volume", "app stats", "click-and-collect / BOPIS data", "delivery metrics"],
-    "fulfilment": ["fulfilment centre count", "dark store updates", "same-day delivery expansion", "third-party partnerships", "delivery improvements"],
-    "loyalty": ["loyalty member count", "programme changes", "personalised offer data", "redemption rates", "reward metrics"],
-    "retailMedia": ["retail media network revenue", "YoY growth", "CPG advertiser count", "off-site expansion", "named partnerships"],
-    "aiTechnology": ["AI initiatives named", "automation pilots", "pricing algorithm updates", "demand forecasting", "in-store tech"],
-    "outlook": ["next quarter or FY guidance", "strategic investment priorities", "named initiatives", "management commentary"]
+    "financials": [],
+    "digitalCommerce": [],
+    "fulfilment": [],
+    "loyalty": [],
+    "retailMedia": [],
+    "aiTechnology": [],
+    "outlook": []
   },
-  "notFound": ["list sections where no data was found"]
+  "notFound": ["list ONLY the top-level section names (e.g. digitalCommerce, retailMedia) where the array is completely empty — do not list individual missing data points"]
 }
 
 Return only valid JSON. No markdown, no preamble.`;
@@ -162,7 +173,7 @@ Return only valid JSON. No markdown, no preamble.`;
   try {
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1400,
+      max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     });
 
@@ -262,7 +273,7 @@ export async function POST(req: NextRequest) {
     const rawContent = allResults
       .map(r => `### ${r.title}\nSource: ${extractDomain(r.url)} | Date: ${r.published_date || 'unknown'}\n${r.content || ''}`)
       .join('\n\n---\n\n')
-      .slice(0, 18000);
+      .slice(0, 28000);
 
     const insights = await extractInsights(retailer, rawContent, knownData || '');
 

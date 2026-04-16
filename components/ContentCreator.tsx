@@ -5,6 +5,10 @@ import { ContentType, ResearchDoc, BlogType, EmailSubtype, LibraryItem } from '@
 import OutputPanel from './OutputPanel';
 import BlogPipeline from './BlogPipeline';
 import GrocerPerformancePipeline from './GrocerPerformancePipeline';
+import MarketSnapshotPipeline from './MarketSnapshotPipeline';
+import VideoScriptPipeline from './VideoScriptPipeline';
+import NewsletterPipeline from './NewsletterPipeline';
+import NurtureEmailsPipeline from './NurtureEmailsPipeline';
 import { Sparkles, ChevronDown, X, Link, Loader2, BookOpen } from 'lucide-react';
 
 // ─── Blog type options ───────────────────────────────────────────────────────
@@ -113,7 +117,7 @@ const CONTENT_CONFIG: Record<
   },
   'email-sequence': {
     label: 'Email Sequence',
-    subtitle: 'Multi-email nurture sequence based on entry point and audience',
+    subtitle: 'Lead nurture or event nurture — tailored to entry point and audience',
     fields: [],
   },
   'daily-summary': {
@@ -184,6 +188,26 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
     return <GrocerPerformancePipeline onSaveToLibrary={onSaveToLibrary} />;
   }
 
+  // Market Snapshot uses its own dedicated pipeline
+  if (contentType === 'market-snapshot') {
+    return <MarketSnapshotPipeline onSaveToLibrary={onSaveToLibrary} />;
+  }
+
+  // Video Script uses its own dedicated pipeline
+  if (contentType === 'video-script') {
+    return <VideoScriptPipeline onSaveToLibrary={onSaveToLibrary} />;
+  }
+
+  // Newsletter uses its own dedicated pipeline
+  if (contentType === 'newsletter') {
+    return <NewsletterPipeline onSaveToLibrary={onSaveToLibrary} />;
+  }
+
+  // Event nurture sequence
+  if (contentType === 'email-sequence') {
+    return <NurtureEmailsPipeline onSaveToLibrary={onSaveToLibrary} />;
+  }
+
   const selectedDoc = researchDocs.find((d) => d.id === selectedDocId);
 
   const handleFetchUrl = async () => {
@@ -210,16 +234,9 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
   const buildPrompt = () => {
     const parts: string[] = [];
 
-    if (contentType === 'newsletter') {
-      if (fields.week) parts.push(`Week of: ${fields.week}`);
-      if (fields.stat) parts.push(`Headline stat: ${fields.stat}`);
-      parts.push(`Number of stories to feature: ${storyCount}`);
-      if (recentStories.trim()) parts.push(`Recent stories to cover:\n${recentStories}`);
-    } else {
-      config.fields.forEach((f) => {
-        if (fields[f.id]) parts.push(`${f.label}: ${fields[f.id]}`);
-      });
-    }
+    config.fields.forEach((f) => {
+      if (fields[f.id]) parts.push(`${f.label}: ${fields[f.id]}`);
+    });
 
     return parts.length > 0 ? parts.join('\n') : `Create a ${config.label} for Grocery Doppio.`;
   };
@@ -330,47 +347,6 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
             </div>
           ))}
 
-          {/* Newsletter: recent stories + story count */}
-          {contentType === 'newsletter' && (
-            <>
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
-                  Recent stories (last 3–4 weeks)
-                </label>
-                <textarea
-                  rows={6}
-                  className="w-full text-sm rounded-lg px-3 py-2.5 resize-none outline-none transition-colors"
-                  style={{ background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  placeholder={`Paste in recent story headlines or summaries, one per line.\n\ne.g.\nKroger reports 3.2% comp growth in Q4 driven by digital\nAldi announces 20 new US locations for 2025\nWalmart grocery share hits 26% — highest since 2021`}
-                  value={recentStories}
-                  onChange={(e) => setRecentStories(e.target.value)}
-                  onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                  onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-                  Number of stories to feature: <span style={{ color: 'var(--accent)' }}>{storyCount}</span>
-                </label>
-                <div className="flex gap-2">
-                  {[3, 4, 5, 6].map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => setStoryCount(n)}
-                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                      style={{
-                        background: storyCount === n ? 'var(--accent)' : 'var(--background)',
-                        border: `1px solid ${storyCount === n ? 'var(--accent)' : 'var(--border)'}`,
-                        color: storyCount === n ? 'white' : 'var(--text-secondary)',
-                      }}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
 
           {false && (
             <div>

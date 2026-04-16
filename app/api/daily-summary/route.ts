@@ -36,11 +36,11 @@ export async function POST(req: NextRequest) {
     const allResults: { title: string; url: string; content: string; published_date?: string }[] = [];
 
     const searches = await Promise.allSettled([
-      // Pillar 1 & 2: AI + Automation news at top grocery retailers
+      // AI + Automation news at top grocery retailers
       webSearch({ query: `grocery retailer AI artificial intelligence automation launch announcement ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
-      // Pillar 3 & 4: Digital Commerce + Personalization
-      webSearch({ query: `grocery retail digital commerce personalization app launch ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
-      // Pillar 5 & 6: Retail Media + Supply Chain
+      // Online/omnichannel commerce + Personalization
+      webSearch({ query: `grocery retail online omnichannel personalization app launch ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
+      // Retail Media + Supply Chain
       webSearch({ query: `grocery retail media network supply chain technology news ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
       // Top retailers: any technology or digital news
       webSearch({ query: `Walmart Kroger Costco Albertsons Target Publix grocery technology news ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
@@ -87,7 +87,9 @@ export async function POST(req: NextRequest) {
       .map((r, i) => `${i + 1}. "${r.title}"\n   URL: ${r.url}\n   Published: ${r.published_date || 'this week'}\n   Summary: ${(r.content || '').slice(0, 180)}`)
       .join('\n\n');
 
-    const prompt = `You are the editorial director at Grocery Doppio, writing a daily intelligence brief for senior grocery executives. The brief focuses on the top 20 US grocery retailers (Walmart, Kroger, Costco, Albertsons, Target, Publix, H-E-B, Ahold Delhaize, Whole Foods, Amazon Fresh, Aldi, Meijer, Wegmans, Trader Joe's, ShopRite, BJ's Wholesale, Sprouts, Dollar General, Winn-Dixie, Southeastern Grocers) and their activity across six key pillars: AI, Automation, Digital Commerce, Personalization, Retail Media, and Supply Chain.
+    const prompt = `You are the editorial director at Grocery Doppio, writing a daily intelligence brief for C-level and senior executives at major grocery retailers and grocery-related technology companies. Your audience — CEOs, CIOs, CTOs, CMOs, and Chief Digital Officers — makes decisions that affect billions in revenue and millions of customers. Every sentence must earn its place by delivering a strategic insight, a competitive signal, or an implication they can act on.
+
+The brief tracks the top 20 US grocery retailers (Walmart, Kroger, Costco, Albertsons, Target, Publix, H-E-B, Ahold Delhaize, Whole Foods, Amazon Fresh, Aldi, Meijer, Wegmans, Trader Joe's, ShopRite, BJ's Wholesale, Sprouts, Dollar General, Winn-Dixie, Southeastern Grocers) across the themes that matter most to their business: artificial intelligence and machine learning adoption, store and supply chain automation, online and omnichannel commerce, customer personalization, retail media networks, and supply chain resilience.
 
 Today is ${dateLabel}. The brief covers ONLY the 7 days ending today (${cutoff.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}–${dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}).
 
@@ -99,13 +101,13 @@ STRICT RULES — read before writing:
 
 ${signals ? `THIS WEEK'S SIGNALS:\n${signals}\n\n` : 'NO SIGNALS AVAILABLE — write two sentences noting that no qualifying news was identified for this window and that coverage will resume next edition.\n\n'}Write a concise daily brief (350–450 words) using only the signals above. Structure it as:
 
-**The Big Picture** (2–3 sentences on the dominant theme from the signals)
+**The Big Picture** (2–3 sentences on the dominant theme emerging from this week's signals — frame it as a market-level shift, not a list of events)
 
-**Key Developments** (4–6 bullet points — each must map directly to a signal above; include company, action, and why it matters)
+**Key Developments** (4–6 bullet points — each must map directly to a signal above; state the company, what they did, and the strategic implication for competitors or the broader market)
 
-**Pillar Spotlight** (one paragraph on the most active content pillar this week — AI, Automation, Digital Commerce, Personalization, Retail Media, or Supply Chain — based only on the signals)
+**In Focus** (one paragraph spotlighting the most significant trend from this week's signals — whether that's the adoption of AI at the shelf edge, the acceleration of retail media, shifts in online grocery economics, or another theme — and what it signals for the competitive landscape)
 
-**So What** (1–2 sentences on the implication for grocery executives)
+**Executive Takeaway** (1–2 sentences on what a grocery CEO or technology leader should be watching or considering as a result of this week's developments)
 
 LINKING RULES:
 - Every development you mention must be hyperlinked: [anchor text](url)
@@ -116,7 +118,8 @@ LINKING RULES:
 Rules:
 - ONLY use events from the signals — zero exceptions
 - No invented statistics or events
-- Bold, direct, no hedging
+- Write like a trusted advisor to the C-suite: direct, confident, no hedging, no jargon
+- Do not use internal content-category labels or framework terminology (e.g. do not write "pillar", "digital commerce" as a category label, or similar internal classifications)
 - Do not include a date header
 - Do NOT output any reasoning, signal analysis, filtering notes, or commentary — start your response immediately with the brief content itself`;
 

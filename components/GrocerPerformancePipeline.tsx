@@ -320,7 +320,10 @@ export default function GrocerPerformancePipeline({ onSaveToLibrary }: GrocerPer
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      setOutput(data.output || '');
+      const sourcesSection = includedSources.length > 0
+        ? `\n\n---\n\n## Sources\n\n${includedSources.map(s => `- [${s.title}](${s.url}) — ${s.sourceDomain}`).join('\n')}`
+        : '';
+      setOutput((data.output || '') + sourcesSection);
       setStage('done');
       notifySlack('grocer-done');
     } catch (err) {

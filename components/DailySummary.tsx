@@ -25,9 +25,59 @@ function formatGeneratedAt(iso: string): string {
   } catch { return ''; }
 }
 
+type WebflowState = 'idle' | 'loading' | 'done' | 'error';
+
 function SummaryCard({ entry, onDelete }: { entry: DailySummaryEntry; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [webflowState, setWebflowState] = useState<WebflowState>('idle');
+  const [webflowError, setWebflowError] = useState('');
+
+  async function handleSchedule(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (webflowState === 'loading' || webflowState === 'done') return;
+    setWebflowState('loading');
+    setWebflowError('');
+    try {
+      const res = await fetch('/api/publish/webflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `Daily Summary — ${entry.dateLabel}`,
+          body: entry.summary,
+          blogType: 'daily-summary',
+          author: 'Grocery Doppio',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.success === false) throw new Error(data.error || data.message || 'Webflow publish failed');
+      setWebflowState('done');
+    } catch (err) {
+      setWebflowError(err instanceof Error ? err.message : 'Failed to push to Webflow');
+      setWebflowState('error');
+    }
+  }
+
+  const scheduleLabel =
+    webflowState === 'loading' ? 'Pushing…' :
+    webflowState === 'done'    ? 'In Webflow ✓' :
+    webflowState === 'error'   ? 'Retry' :
+    'Schedule';
+
+  const scheduleColor =
+    webflowState === 'done'  ? '#6366f1' :
+    webflowState === 'error' ? '#ef4444' :
+    'var(--text-secondary)';
+
+  const scheduleBg =
+    webflowState === 'done'  ? 'rgba(99,102,241,0.1)' :
+    webflowState === 'error' ? 'rgba(239,68,68,0.08)' :
+    'var(--background)';
+
+  const scheduleBorder =
+    webflowState === 'done'  ? '#6366f1' :
+    webflowState === 'error' ? 'rgba(239,68,68,0.3)' :
+    'var(--border)';
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
@@ -48,6 +98,24 @@ function SummaryCard({ entry, onDelete }: { entry: DailySummaryEntry; onDelete: 
             {formatGeneratedAt(entry.generatedAt)}
           </span>
           <button
+            onClick={handleSchedule}
+            disabled={webflowState === 'loading' || webflowState === 'done'}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold transition-all"
+            style={{
+              background: scheduleBg,
+              border: `1px solid ${scheduleBorder}`,
+              color: scheduleColor,
+              cursor: (webflowState === 'loading' || webflowState === 'done') ? 'default' : 'pointer',
+              opacity: webflowState === 'loading' ? 0.7 : 1,
+            }}
+            title="Push to Webflow as draft"
+          >
+            {webflowState === 'loading' && (
+              <div className="w-2.5 h-2.5 rounded-full border border-t-transparent animate-spin" style={{ borderColor: 'rgba(99,102,241,0.3)', borderTopColor: '#6366f1' }} />
+            )}
+            {scheduleLabel}
+          </button>
+          <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
             className="p-1 rounded transition-colors"
             style={{ color: 'var(--text-secondary)' }}
@@ -62,6 +130,13 @@ function SummaryCard({ entry, onDelete }: { entry: DailySummaryEntry; onDelete: 
             : <ChevronDown size={14} style={{ color: 'var(--text-secondary)' }} />}
         </div>
       </div>
+
+      {/* Webflow error */}
+      {webflowState === 'error' && webflowError && (
+        <div className="px-4 py-2 text-[11px]" style={{ background: 'rgba(239,68,68,0.06)', color: '#ef4444', borderBottom: '1px solid rgba(239,68,68,0.15)' }}>
+          {webflowError}
+        </div>
+      )}
 
       {/* Expanded content */}
       {open && (
