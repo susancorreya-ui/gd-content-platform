@@ -30,7 +30,7 @@ interface ExtractedInsights {
   sections: {
     financials: string[];
     digitalCommerce: string[];
-    fulfilment: string[];
+    fulfillment: string[];
     loyalty: string[];
     retailMedia: string[];
     aiTechnology: string[];
@@ -64,8 +64,8 @@ const GD_BENCHMARKS = [
   { stat: '$126B', label: 'digital grocery sales — 13.4% of total', color: '#3b82f6' },
   { stat: '$8.5B', label: 'US grocery retail media market, ↑31% YoY', color: '#8b5cf6' },
   { stat: '86%', label: 'C-suite execs prioritising AI for efficiency', color: '#f59e0b' },
-  { stat: '83%', label: 'shoppers enrolled in a loyalty programme', color: '#10b981' },
-  { stat: '92%', label: 'shoppers say grocery lacks personalisation', color: '#ec4899' },
+  { stat: '83%', label: 'shoppers enrolled in a loyalty program', color: '#10b981' },
+  { stat: '92%', label: 'shoppers say grocery lacks personalization', color: '#ec4899' },
 ];
 
 const PIPELINE_STEPS = [
@@ -88,7 +88,7 @@ const SOURCE_TYPE_COLORS: Record<string, string> = {
 const SECTION_META: { key: keyof ExtractedInsights['sections']; label: string; color: string }[] = [
   { key: 'financials', label: 'Financials', color: '#6366f1' },
   { key: 'digitalCommerce', label: 'Digital Commerce', color: '#3b82f6' },
-  { key: 'fulfilment', label: 'Fulfilment & Delivery', color: '#10b981' },
+  { key: 'fulfillment', label: 'Fulfilment & Delivery', color: '#10b981' },
   { key: 'loyalty', label: 'Loyalty Programme', color: '#f59e0b' },
   { key: 'retailMedia', label: 'Retail Media', color: '#8b5cf6' },
   { key: 'aiTechnology', label: 'AI & Technology', color: '#ec4899' },
@@ -683,7 +683,7 @@ function IdlePlaceholder({ retailer }: { retailer: string }) {
           { label: 'Key Highlights', note: '4–6 KPI bullets' },
           { label: 'Digital Commerce', note: 'ecommerce + app' },
           { label: 'Fulfilment & Delivery', note: 'last-mile + dark stores' },
-          { label: 'Loyalty Programme', note: 'members + personalisation' },
+          { label: 'Loyalty Programme', note: 'members + personalization' },
           { label: 'Retail Media', note: 'RMN + CPG partnerships' },
           { label: 'AI & Technology', note: 'investments + pilots' },
           { label: 'Future Outlook', note: 'strategic priorities' },

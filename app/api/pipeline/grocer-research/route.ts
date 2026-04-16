@@ -30,7 +30,7 @@ export interface ExtractedInsights {
   sections: {
     financials: string[];
     digitalCommerce: string[];
-    fulfilment: string[];
+    fulfillment: string[];
     loyalty: string[];
     retailMedia: string[];
     aiTechnology: string[];
@@ -146,8 +146,8 @@ IMPORTANT: The "period" field must identify exactly which reporting period this 
 
 For each section, extract ANY relevant mention — even partial or indirect references count. For example:
 - "digitalCommerce": any mention of online sales, ecommerce, app, digital orders, click-and-collect, BOPIS, or delivery
-- "fulfilment": any mention of fulfilment centres, dark stores, same-day, last-mile, delivery speed, or third-party (Instacart, DoorDash)
-- "loyalty": any mention of loyalty members, rewards, personalisation, offers, or programme changes
+- "fulfillment": any mention of fulfillment centres, dark stores, same-day, last-mile, delivery speed, or third-party (Instacart, DoorDash)
+- "loyalty": any mention of loyalty members, rewards, personalization, offers, or program changes
 - "retailMedia": any mention of retail media, advertising revenue, CPG partnerships, or sponsored placements
 - "aiTechnology": any mention of AI, automation, machine learning, pricing algorithms, robots, or in-store technology
 
@@ -159,7 +159,7 @@ If a section has genuinely no mention at all in the content, leave its array emp
   "sections": {
     "financials": [],
     "digitalCommerce": [],
-    "fulfilment": [],
+    "fulfillment": [],
     "loyalty": [],
     "retailMedia": [],
     "aiTechnology": [],
@@ -185,7 +185,7 @@ Return only valid JSON. No markdown, no preamble.`;
       period: 'Latest period',
       headline: `${retailer} — latest earnings`,
       sections: {
-        financials: [], digitalCommerce: [], fulfilment: [],
+        financials: [], digitalCommerce: [], fulfillment: [],
         loyalty: [], retailMedia: [], aiTechnology: [], outlook: [],
       },
       notFound: ['Extraction failed — article will use raw research content'],

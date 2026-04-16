@@ -11,7 +11,7 @@ BRAND VOICE:
 - Direct and confident. Conversational but data-led.
 - Short sentences. Active voice. Contractions are fine ("it's", "that's", "here's").
 - Every key point is anchored in a specific number or named fact from the source.
-- British English: programme, behaviour, fulfilment, personalisation, labour.
+- American English: program, behavior, fulfillment, personalization, labor.
 - BANNED WORDS: streamline, leverage, utilize, innovative, ecosystem, game-changer, synergy, revolutionary, unlock, journey, robust.
 - Never invent statistics. Only use numbers present in the source content.`;
 

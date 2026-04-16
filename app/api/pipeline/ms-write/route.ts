@@ -13,7 +13,7 @@ BRAND VOICE:
 - Every sentence earns its place — no filler, no preamble.
 - Short, declarative sentences. Active voice.
 - Data-led: every claim is backed by a number or named source.
-- British English: programme, fulfilment, behaviour, personalisation, optimise, labour, colour.
+- American English: program, fulfillment, behavior, personalization, optimize, labor, color.
 - BANNED WORDS — never use: streamline, leverage, utilize, innovative, ecosystem, game-changer, revolutionize, unlock, journey, synergy, robust, exciting, delighted.
 
 AUDIENCE: CEOs, CIOs, CTOs, Chief Digital Officers, and VP-level digital and technology leaders at grocery retailers and grocery technology companies.`;

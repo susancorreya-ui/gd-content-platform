@@ -11,7 +11,7 @@ BRAND VOICE:
 - Warm, energetic, but professional — this is a recap of a real event, not a press release.
 - Short, vivid captions. Each shot description is 1–2 sentences max.
 - Active voice. Present tense for atmosphere ("leaders gather", "the conversation shifts").
-- British English: programme, behaviour, etc.
+- American English: program, behavior, fulfillment, personalization.
 - BANNED WORDS: streamline, leverage, utilize, innovative, game-changer, synergy, ecosystem, revolutionary.`;
 
 export async function POST(req: NextRequest) {

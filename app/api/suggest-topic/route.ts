@@ -36,7 +36,7 @@ Content pillar: ${pillar}
 - "How private label is reshaping grocery margins in 2025"
 - "Why retail media networks are pulling further ahead — and what mid-size grocers should do about it"
 - "The AI forecasting gap: why most grocers are still flying blind on inventory"
-- "How personalisation is separating grocery winners from the pack in 2025"
+- "How personalization is separating grocery winners from the pack in 2025"
 - "Why the grocery delivery wars are producing one clear winner — and it's not who you think"
 
 **Rules:**

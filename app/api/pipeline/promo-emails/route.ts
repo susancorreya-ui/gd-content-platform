@@ -11,7 +11,7 @@ VOICE:
 - Personal and direct. These come from a named person, not a brand account.
 - Short sentences. No fluff, no preamble.
 - Respect the reader's time — get to the point in the first sentence.
-- British English: programme, behaviour, fulfilment, personalisation.
+- American English: program, behavior, fulfillment, personalization.
 - Always open with "First name," (literal placeholder — the ESP will personalise it)
 - BANNED: streamline, leverage, utilize, innovative, ecosystem, game-changer, synergy, robust, exciting, delighted, revolutionize, unlock, journey.
 
@@ -108,7 +108,7 @@ RULES:
 - Every email opens with "First name," on its own line
 - Subject lines must be specific to this event — never generic
 - Use the exact ===EMAIL_N=== separators with no other text outside the blocks
-- British English throughout
+- American English throughout
 - No preamble, no "I hope this finds you well", no corporate filler`;
 
   try {

@@ -12,7 +12,7 @@ BRAND VOICE:
 - Warm enough to read like a curated briefing from a trusted colleague — not a press release.
 - Every story snippet is data-led where the source allows. Lead with what's notable.
 - Short sentences. Active voice. Conversational but authoritative.
-- British English: programme, behaviour, fulfilment, personalisation, labour, colour.
+- American English: program, behavior, fulfillment, personalization, labor, color.
 - BANNED WORDS: streamline, leverage, utilize, innovative, ecosystem, game-changer, revolutionize, unlock, journey, synergy, robust, exciting, delighted.
 
 NEWSLETTER FORMAT — follow exactly:

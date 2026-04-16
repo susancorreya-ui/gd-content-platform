@@ -11,7 +11,7 @@ VOICE:
 - Personal and direct. Comes from a named person.
 - Short sentences. No fluff, no preamble.
 - Respect the reader's time — get to the point in the first line.
-- British English: programme, behaviour, fulfilment, personalisation.
+- American English: program, behavior, fulfillment, personalization.
 - BANNED: streamline, leverage, utilize, innovative, ecosystem, game-changer, synergy, robust, exciting, delighted, revolutionize, unlock, journey.
 
 OUTPUT FORMAT — always produce exactly:

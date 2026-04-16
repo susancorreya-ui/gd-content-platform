@@ -11,9 +11,9 @@ Key Grocery Doppio benchmark statistics to cite inline (use markdown hyperlinks)
 - Digital grocery sales represent $126B, or 13.4% of total grocery — [Grocery Doppio](https://grocerydoppio.com)
 - US grocery retail media market is worth $8.5B, growing 31% YoY — [Grocery Doppio](https://grocerydoppio.com)
 - 86% of C-suite grocery executives are prioritising AI for efficiency — [Grocery Doppio](https://grocerydoppio.com)
-- 83% of grocery shoppers are enrolled in at least one loyalty programme — [Grocery Doppio](https://grocerydoppio.com)
-- 71% of grocers plan to increase investment in fulfilment capabilities — [Grocery Doppio](https://grocerydoppio.com)
-- 92% of shoppers say grocery lacks personalisation — [Grocery Doppio](https://grocerydoppio.com)
+- 83% of grocery shoppers are enrolled in at least one loyalty program — [Grocery Doppio](https://grocerydoppio.com)
+- 71% of grocers plan to increase investment in fulfillment capabilities — [Grocery Doppio](https://grocerydoppio.com)
+- 92% of shoppers say grocery lacks personalization — [Grocery Doppio](https://grocerydoppio.com)
 
 Weave 2–3 of these citations naturally into the relevant section (not all in one place).
 `;
@@ -37,11 +37,11 @@ Aim for 4–6 bullet points. Use real figures from the research. If a figure is 
 ## Digital Commerce
 One paragraph (100–130 words). Cover ecommerce sales growth, online order volume, app performance, click-and-collect or BOPIS. Weave in a GD benchmark hyperlink where relevant.
 
-## Fulfilment & Delivery
-One paragraph (90–120 words). Cover last-mile delivery, dark stores, micro-fulfilment, same-day capability, third-party partnerships (Instacart, DoorDash, etc.). Cite GD fulfilment benchmark if applicable.
+## Fulfillment & Delivery
+One paragraph (90–120 words). Cover last-mile delivery, dark stores, micro-fulfillment, same-day capability, third-party partnerships (Instacart, DoorDash, etc.). Cite GD fulfillment benchmark if applicable.
 
-## Loyalty Programme
-One paragraph (80–110 words). Cover loyalty membership numbers, personalised offers, reward redemption, programme changes. Cite GD loyalty benchmark.
+## Loyalty Program
+One paragraph (80–110 words). Cover loyalty membership numbers, personalized offers, reward redemption, program changes. Cite GD loyalty benchmark.
 
 ## Retail Media
 One paragraph (80–110 words). Cover retail media network revenue, CPG partnership announcements, sponsored placements, off-site advertising. Cite GD retail media benchmark.
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
 Your writing is:
 - Data-led: every claim is backed by a number or a named source
-- Precise: British English spelling (programme, fulfilment, behaviour, optimise, labour)
+- Precise: American English spelling (program, fulfillment, behavior, optimize, labor)
 - Balanced: no hyperbole, no filler phrases ("in today's fast-paced world", "it's clear that…")
 - Structured: follow the exact article format provided
 - Authoritative: cite Grocery Doppio benchmarks inline as hyperlinks where relevant

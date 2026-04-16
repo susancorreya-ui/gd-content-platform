@@ -11,7 +11,7 @@ VOICE:
 - Personal and warm — these come from a named person, not a brand account.
 - Short, clear sentences. No filler.
 - Professional but not stiff — like a colleague reaching out.
-- British English: programme, behaviour, etc.
+- American English: program, behavior, fulfillment, personalization.
 - Always open with "First name," (literal placeholder — the ESP will personalise it)
 - Always close with the sender's signature placeholder`;
 

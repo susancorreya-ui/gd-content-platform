@@ -11,7 +11,7 @@ VOICE:
 - Personal and warm — from a named person, not a brand.
 - Short, direct sentences. No filler.
 - Each email has one clear job. Do not overload.
-- British English: programme, behaviour, fulfilment, personalisation, labour.
+- American English: program, behavior, fulfillment, personalization, labor.
 - Always open with "First name," (literal placeholder)
 - Always close with the sender's signature placeholder
 - BANNED WORDS: streamline, leverage, utilize, innovative, ecosystem, game-changer, synergy, robust, exciting, delighted, revolutionize, unlock.`;
