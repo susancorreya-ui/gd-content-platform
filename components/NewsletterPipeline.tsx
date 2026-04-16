@@ -130,7 +130,7 @@ function IdlePlaceholder() {
           Doppio Direct Newsletter
         </h3>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Add up to 5 story links, fetch their content, then generate the full newsletter — subject line, intro, and story blocks.
+          Add story links, fetch their content, then generate the full newsletter — subject line, intro, and story blocks.
         </p>
       </div>
       <div className="w-full max-w-md rounded-2xl p-5 space-y-3" style={{ background: 'var(--background)', border: '1px solid var(--border)' }}>
@@ -138,7 +138,7 @@ function IdlePlaceholder() {
         {[
           { label: 'Subject line',    note: 'Doppio Direct: [Theme]' },
           { label: 'Intro paragraph', note: 'Unifying themes across stories' },
-          { label: 'Story 1–5',       note: 'Headline · 2–4 sentences · CTA' },
+          { label: 'Stories',          note: 'Headline · 2–4 sentences · CTA' },
           { label: 'Event teaser',    note: 'Optional — positioned last' },
         ].map((s, i) => (
           <div key={i} className="flex items-center justify-between text-xs">
@@ -198,7 +198,6 @@ export default function NewsletterPipeline({ onSaveToLibrary }: NewsletterPipeli
   };
 
   const addStory = () => {
-    if (stories.length >= 5) return;
     setStories(prev => [...prev, makeStory()]);
   };
 
@@ -272,7 +271,7 @@ export default function NewsletterPipeline({ onSaveToLibrary }: NewsletterPipeli
               Doppio Direct
             </h2>
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Add up to 5 story URLs — the platform fetches each one and writes the newsletter.
+              Add story URLs — the platform fetches each one and writes the newsletter.
             </p>
           </div>
 
@@ -300,7 +299,7 @@ export default function NewsletterPipeline({ onSaveToLibrary }: NewsletterPipeli
               <label className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
                 Stories
                 <span className="ml-1.5 font-normal" style={{ color: 'var(--text-secondary)' }}>
-                  ({loadedCount} fetched · {stories.length}/5 slots)
+                  ({loadedCount} of {stories.length} fetched)
                 </span>
               </label>
               {pendingCount > 0 && (
@@ -330,7 +329,7 @@ export default function NewsletterPipeline({ onSaveToLibrary }: NewsletterPipeli
               ))}
             </div>
 
-            {stories.length < 5 && (
+            {(
               <button
                 onClick={addStory}
                 disabled={isLoading}
