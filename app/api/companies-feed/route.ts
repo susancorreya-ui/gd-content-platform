@@ -243,6 +243,83 @@ function keywordCategorize(title: string, description: string): string {
   return best[1] >= 1 ? best[0] : 'Digital Commerce';
 }
 
+// ─── Relevance filters ────────────────────────────────────────────────────────
+
+const IRRELEVANT_URL_PATTERNS = [
+  /\/jobs?\//i, /\/careers?\//i, /\/hiring/i, /\/work-with-us/i, /\/join-us/i,
+  /\/about(-us)?$/i, /\/team$/i, /\/leadership$/i, /\/history$/i, /\/mission$/i,
+  /\/store(-finder|-locator)?/i, /\/locations?\//i, /\/find-a-store/i,
+  /\/recipes?\//i, /\/products?\//i, /\/weekly-ad/i, /\/coupon/i,
+  /\/contact(-us)?$/i, /\/faq/i, /\/help\//i, /\/support\//i,
+  /\/privacy/i, /\/cookie/i, /\/terms/i, /\/accessibility/i,
+  /\/press-kit/i, /\/brand-assets/i, /\/media-kit/i,
+  /\/newsletter-signup/i, /\/subscribe/i,
+];
+
+const IRRELEVANT_TITLE_PATTERNS = [
+  /\bjob(s| opening| posting)?\b/i, /\bcareer(s)?\b/i, /\bnow hiring\b/i,
+  /\bwe('re| are) hiring\b/i, /\bjoin our team\b/i, /\bopen position/i,
+  /\babout us\b/i, /\bour story\b/i, /\bour history\b/i, /\bmeet the team\b/i,
+  /\bstore hours\b/i, /\bweekly ad\b/i, /\brecipe(s)?\b/i,
+  /\bprivacy (notice|policy)\b/i, /\bcookie (notice|policy)\b/i,
+  /\bterms (of|and) (service|use|conditions)\b/i,
+];
+
+// At least one GD pillar keyword must appear in title + description
+const RELEVANCE_KEYWORDS = [
+  // AI & technology
+  'artificial intelligence', ' ai ', 'machine learning', 'generative', 'predictive',
+  'algorithm', 'neural', 'llm', 'genai', 'technology', 'tech', 'digital',
+  'software', 'platform', 'app ', 'application', 'tool', 'solution', 'system',
+  'innovation', 'initiative', 'launch', 'debut', 'roll out', 'pilot', 'deploy',
+  // Commerce
+  'ecommerce', 'e-commerce', 'online grocery', 'delivery', 'pickup', 'bopis',
+  'omnichannel', 'digital sales', 'online order', 'mobile app', 'click and collect',
+  // Automation & operations
+  'automation', 'robotics', 'robot', 'autonomous', 'dark store', 'fulfillment',
+  'warehouse', 'micro-fulfillment', 'self-checkout', 'scan and go',
+  // Personalization & loyalty
+  'personalization', 'loyalty', 'rewards', 'recommendation', 'shopper data',
+  'customer data', 'first-party data', 'membership',
+  // Retail media
+  'retail media', 'media network', 'advertising', 'cpg', 'ad spend', 'programmatic',
+  'sponsored', 'media monetization',
+  // Supply chain
+  'supply chain', 'logistics', 'distribution', 'inventory', 'sourcing', 'procurement',
+  'shrink', 'out-of-stock', 'replenishment',
+  // Workforce / associate technology
+  'employee app', 'associate app', 'workforce', 'associate technology', 'store associate',
+  'frontline', 'team member app', 'staff app', 'employee experience',
+  // Financial / strategic
+  'earnings', 'revenue', 'quarterly', 'annual report', 'financial', 'investor',
+  'sales growth', 'market share', 'strategy', 'partnership', 'acquisition', 'investment',
+  'expansion', 'growth', 'performance',
+];
+
+function isIrrelevantUrl(url: string): boolean {
+  return IRRELEVANT_URL_PATTERNS.some(p => p.test(url));
+}
+
+function isIrrelevantTitle(title: string): boolean {
+  return IRRELEVANT_TITLE_PATTERNS.some(p => p.test(title));
+}
+
+function isRelevant(title: string, description: string): boolean {
+  const text = (title + ' ' + description).toLowerCase();
+  return RELEVANCE_KEYWORDS.some(kw => text.includes(kw));
+}
+
+const PRIVACY_WALL_SIGNALS = [
+  'privacy notice', 'privacy policy', 'cookie policy', 'cookie notice',
+  'we use cookies', 'this site uses cookies', 'cookie consent',
+  'accept all cookies', 'manage cookies', 'your privacy choices',
+];
+
+function isPrivacyWall(text: string): boolean {
+  const lower = text.toLowerCase();
+  return PRIVACY_WALL_SIGNALS.filter(s => lower.includes(s)).length >= 2;
+}
+
 function detectType(url: string, title: string): 'news' | 'pr' | 'earnings' | 'social' {
   if (/linkedin\.com/i.test(url)) return 'social';
   if (/twitter\.com|x\.com/i.test(url)) return 'social';
@@ -252,9 +329,30 @@ function detectType(url: string, title: string): 'news' | 'pr' | 'earnings' | 's
   return 'news';
 }
 
+// ─── Trusted third-party sources ─────────────────────────────────────────────
+// Same list as the research feed — used for external company coverage
+
+const TRUSTED_SOURCES = [
+  // Newswire & financial press
+  'reuters.com', 'apnews.com', 'bloomberg.com', 'wsj.com',
+  'ft.com', 'cnbc.com', 'forbes.com', 'economist.com',
+  // Grocery & retail industry press
+  'supermarketnews.com', 'progressivegrocer.com', 'grocerydive.com',
+  'chainstoreage.com', 'fmi.org', 'retaildive.com', 'winsightgrocerybusiness.com',
+  // PR & official releases
+  'businesswire.com', 'prnewswire.com', 'globenewswire.com', 'accesswire.com',
+  // Research & consulting
+  'mckinsey.com', 'deloitte.com', 'pwc.com', 'bcg.com',
+  'hbr.org', 'gartner.com', 'forrester.com', 'bain.com',
+  // Data & measurement
+  'nielseniq.com', 'nielsen.com', 'circana.com', 'kantar.com',
+  // Government
+  'usda.gov', 'census.gov', 'bls.gov',
+];
+
 // ─── Two searches per company ─────────────────────────────────────────────────
-// 1. Owned media: search within their own newsroom + IR pages
-// 2. External tech news: credible press coverage of this company
+// 1. Owned media: company's own newsroom + IR pages
+// 2. Trusted third-party: credible press + industry sources covering this company
 
 async function searchCompany(
   company: typeof TOP_20_GROCERS[0],
@@ -265,23 +363,37 @@ async function searchCompany(
   ];
 
   const searches = await Promise.allSettled([
+    // Source 1: company's own newsroom / IR
     webSearch({
       query: `${company.name} technology digital AI retail media automation personalization 2026`,
       searchDepth: 'advanced',
-      maxResults: 4,
-      days: 90,
+      maxResults: 5,
+      days: 365,
       includeDomains: allDomains,
     }),
+    // Source 2: trusted third-party industry + financial press
     webSearch({
-      query: `"${company.name}" grocery technology digital AI retail media 2026`,
+      query: `"${company.name}" grocery technology digital AI ecommerce retail media supply chain 2026`,
+      searchDepth: 'advanced',
+      maxResults: 6,
+      days: 365,
+      includeDomains: TRUSTED_SOURCES,
+    }),
+    // Source 3: earnings + financial news from trusted press
+    webSearch({
+      query: `"${company.name}" earnings revenue quarterly results financial 2026`,
       searchDepth: 'advanced',
       maxResults: 4,
-      days: 90,
-      includeDomains: [
-        'reuters.com', 'bloomberg.com', 'wsj.com', 'cnbc.com',
-        'ft.com', 'forbes.com', 'businesswire.com', 'prnewswire.com',
-        'apnews.com', 'mckinsey.com', 'deloitte.com',
-      ],
+      days: 365,
+      includeDomains: TRUSTED_SOURCES,
+    }),
+    // Source 4: broader news — launches, partnerships, initiatives, announcements
+    webSearch({
+      query: `"${company.name}" launch app platform initiative partnership announcement 2026`,
+      searchDepth: 'advanced',
+      maxResults: 4,
+      days: 365,
+      includeDomains: TRUSTED_SOURCES,
     }),
   ]);
 
@@ -306,6 +418,10 @@ async function searchCompany(
         const ts = new Date(r.published_date).getTime();
         if (!isNaN(ts) && ts < CUTOFF_DATE) return false;
       }
+      if (isIrrelevantUrl(r.url)) return false;
+      if (isIrrelevantTitle(r.title)) return false;
+      if (isPrivacyWall(r.content || '')) return false;
+      if (!isRelevant(r.title, r.content || '')) return false;
       seen.add(r.url);
       return true;
     })
