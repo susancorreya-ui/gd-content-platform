@@ -15,7 +15,7 @@ BRAND VOICE:
 - BANNED WORDS: streamline, leverage, utilize, innovative, game-changer, synergy, ecosystem, revolutionary.`;
 
 export async function POST(req: NextRequest) {
-  const { eventName, eventDate, venue, summary, keyMoments, speakers, format }: {
+  const { eventName, eventDate, venue, summary, keyMoments, speakers, format, researchContext }: {
     eventName: string;
     eventDate: string;
     venue?: string;
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     keyMoments: string;
     speakers?: string;
     format: string;
+    researchContext?: string;
   } = await req.json();
 
   if (!eventName || !summary) {
@@ -43,7 +44,7 @@ KEY MOMENTS TO COVER:
 ${keyMoments}
 
 ${speakers ? `SPEAKERS / FIRESIDE CHATS:\n${speakers}` : ''}
-
+${researchContext ? `\n${researchContext}` : ''}
 OUTPUT FORMAT — follow this exactly:
 
 [Event Name] — [Date]

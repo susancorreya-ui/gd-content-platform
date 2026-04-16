@@ -195,17 +195,17 @@ export default function ContentCreator({ contentType, researchDocs, onSaveToLibr
 
   // Video Script uses its own dedicated pipeline
   if (contentType === 'video-script') {
-    return <VideoScriptPipeline onSaveToLibrary={onSaveToLibrary} />;
+    return <VideoScriptPipeline onSaveToLibrary={onSaveToLibrary} researchDocs={researchDocs} />;
   }
 
   // Newsletter uses its own dedicated pipeline
   if (contentType === 'newsletter') {
-    return <NewsletterPipeline onSaveToLibrary={onSaveToLibrary} />;
+    return <NewsletterPipeline onSaveToLibrary={onSaveToLibrary} researchDocs={researchDocs} />;
   }
 
   // Event nurture sequence
   if (contentType === 'email-sequence') {
-    return <NurtureEmailsPipeline onSaveToLibrary={onSaveToLibrary} />;
+    return <NurtureEmailsPipeline onSaveToLibrary={onSaveToLibrary} researchDocs={researchDocs} />;
   }
 
   const selectedDoc = researchDocs.find((d) => d.id === selectedDocId);

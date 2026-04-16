@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     senderTitle,
     senderEmail,
     assetUrl,
+    researchContext,
   }: {
     entryPoint: string;
     audience: string;
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
     senderTitle?: string;
     senderEmail?: string;
     assetUrl?: string;
+    researchContext?: string;
   } = await req.json();
 
   if (!entryPoint || !audience || !topic) {
@@ -49,7 +51,7 @@ TOPIC / CONTENT ASSET: ${topic}
 ${goals ? `GOALS FOR THIS SEQUENCE: ${goals}` : ''}
 ${assetUrl ? `ASSET URL: ${assetUrl}` : ''}
 SENDER: ${senderName}${senderTitle ? `, ${senderTitle}` : ''}${senderEmail ? ` (${senderEmail})` : ''}
-
+${researchContext ? `\n${researchContext}` : ''}
 Write all 5 emails in this exact format with these exact separators:
 
 ===EMAIL_1===

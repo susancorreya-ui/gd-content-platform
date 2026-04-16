@@ -56,10 +56,11 @@ interface EventInput {
 }
 
 export async function POST(req: NextRequest) {
-  const { stories, event, editionDate }: {
+  const { stories, event, editionDate, researchContext }: {
     stories: StoryInput[];
     event?: EventInput;
     editionDate?: string;
+    researchContext?: string;
   } = await req.json();
 
   if (!stories || stories.length === 0) {
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     : '';
 
   const prompt = `Write a complete Doppio Direct newsletter for the following stories.
-${editionDate ? `Edition date: ${editionDate}\n` : ''}${eventContext}
+${editionDate ? `Edition date: ${editionDate}\n` : ''}${eventContext}${researchContext ? `\n${researchContext}\n` : ''}
 STORIES TO COVER (${stories.length} total):
 
 ${storiesContext}

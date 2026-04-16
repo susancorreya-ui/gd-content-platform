@@ -5,7 +5,7 @@ import {
   Calendar, Users, Sparkles, BookOpen, AlertCircle, Link,
   Loader2, CheckCircle, X, Copy, Check,
 } from 'lucide-react';
-import { LibraryItem } from '@/types';
+import { LibraryItem, ResearchDoc } from '@/types';
 import OutputPanel from './OutputPanel';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -14,6 +14,14 @@ type EmailSubtype = 'event-invite' | 'sales-outreach';
 
 interface EmailPipelineProps {
   onSaveToLibrary: (item: Omit<LibraryItem, 'id' | 'createdAt'>) => void;
+  researchDocs?: ResearchDoc[];
+}
+
+function buildResearchContext(docs: ResearchDoc[]): string {
+  const usable = docs.filter(d => (d.extractedText || d.insights).trim());
+  if (!usable.length) return '';
+  return 'UPLOADED RESEARCH — use as additional context and reference:\n\n' +
+    usable.map(d => `[${d.name}]\n${(d.extractedText || d.insights).slice(0, 3000)}`).join('\n\n---\n\n');
 }
 
 const EVENT_FORMATS = ['Virtual / Webinar', 'In-Person', 'Hybrid'];
@@ -54,7 +62,7 @@ function IdlePlaceholder({ subtype }: { subtype: EmailSubtype }) {
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 
-export default function EmailPipeline({ onSaveToLibrary }: EmailPipelineProps) {
+export default function EmailPipeline({ onSaveToLibrary, researchDocs = [] }: EmailPipelineProps) {
   const [subtype, setSubtype] = useState<EmailSubtype>('event-invite');
 
   // Event invite fields
@@ -130,6 +138,7 @@ export default function EmailPipeline({ onSaveToLibrary }: EmailPipelineProps) {
           eventContent, eventUrl, eventName, eventDate, eventFormat, audience,
           prospectCompany, prospectRole, prospectContext, offer, ctaText,
           senderName, senderTitle,
+          researchContext: buildResearchContext(researchDocs),
         }),
       });
       const data = await res.json();

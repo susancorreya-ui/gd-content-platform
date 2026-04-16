@@ -22,7 +22,7 @@ Preview: [preview text — under 90 characters]
 
 export async function POST(req: NextRequest) {
   const { subtype, eventContent, eventUrl, eventName, eventDate, eventFormat, audience, senderName, senderTitle,
-          prospectCompany, prospectRole, prospectContext, offer, ctaText }: {
+          prospectCompany, prospectRole, prospectContext, offer, ctaText, researchContext }: {
     subtype: 'event-invite' | 'sales-outreach';
     // Event invite
     eventContent?: string;
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     prospectContext?: string;
     offer?: string;
     ctaText?: string;
+    researchContext?: string;
   } = await req.json();
 
   let prompt = '';
@@ -54,7 +55,7 @@ ${senderName ? `SENDER: ${senderName}${senderTitle ? `, ${senderTitle}` : ''}` :
 ${eventUrl ? `SOURCE URL: ${eventUrl}` : ''}
 
 ${eventContent ? `EVENT PAGE CONTENT (use this to extract speakers, topics, agenda, and key details):\n${eventContent.slice(0, 5000)}` : ''}
-
+${researchContext ? `\n${researchContext}` : ''}
 Write a compelling invitation email. Structure:
 1. Subject line: specific, creates FOMO without being clickbait
 2. Preview text: one punchy line under 90 chars
@@ -76,7 +77,7 @@ ${prospectContext ? `CONTEXT / PERSONALISATION: ${prospectContext}` : ''}
 ${offer ? `WHAT WE'RE OFFERING: ${offer}` : ''}
 ${ctaText ? `CTA: ${ctaText}` : 'CTA: 15-minute call'}
 ${senderName ? `SENDER: ${senderName}${senderTitle ? `, ${senderTitle}` : ''}` : ''}
-
+${researchContext ? `\n${researchContext}` : ''}
 Write a direct, personalised outreach email. Structure:
 1. Subject line: specific to their company or role — not generic
 2. Preview text: one line that earns the open

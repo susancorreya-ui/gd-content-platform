@@ -5,7 +5,7 @@ import {
   Link, CheckCircle, Loader2, X, Plus, Sparkles, BookOpen,
   AlertCircle, ChevronDown, ChevronUp, Calendar,
 } from 'lucide-react';
-import { LibraryItem } from '@/types';
+import { LibraryItem, ResearchDoc } from '@/types';
 import OutputPanel from './OutputPanel';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -29,6 +29,14 @@ interface EventTeaser {
 
 interface NewsletterPipelineProps {
   onSaveToLibrary: (item: Omit<LibraryItem, 'id' | 'createdAt'>) => void;
+  researchDocs?: ResearchDoc[];
+}
+
+function buildResearchContext(docs: ResearchDoc[]): string {
+  const usable = docs.filter(d => (d.extractedText || d.insights).trim());
+  if (!usable.length) return '';
+  return 'UPLOADED RESEARCH — use as additional context and reference:\n\n' +
+    usable.map(d => `[${d.name}]\n${(d.extractedText || d.insights).slice(0, 3000)}`).join('\n\n---\n\n');
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
@@ -153,7 +161,7 @@ function IdlePlaceholder() {
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 
-export default function NewsletterPipeline({ onSaveToLibrary }: NewsletterPipelineProps) {
+export default function NewsletterPipeline({ onSaveToLibrary, researchDocs = [] }: NewsletterPipelineProps) {
   const [stories, setStories] = useState<Story[]>([makeStory(), makeStory()]);
   const [editionDate, setEditionDate] = useState('');
   const [showEvent, setShowEvent] = useState(false);
@@ -226,6 +234,7 @@ export default function NewsletterPipeline({ onSaveToLibrary }: NewsletterPipeli
           stories: loadedStories.map(s => ({ url: s.url, content: s.fetchedContent })),
           event: showEvent && event.name ? event : undefined,
           editionDate,
+          researchContext: buildResearchContext(researchDocs),
         }),
       });
       const data = await res.json();

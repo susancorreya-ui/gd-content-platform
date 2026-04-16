@@ -76,10 +76,10 @@ export default function Home() {
       );
     }
     if (activeView === 'email-sequence') {
-      return <NurtureEmailsPipeline onSaveToLibrary={handleSaveToLibrary} />;
+      return <NurtureEmailsPipeline onSaveToLibrary={handleSaveToLibrary} researchDocs={researchDocs} />;
     }
     if (activeView === 'email') {
-      return <EmailPipeline onSaveToLibrary={handleSaveToLibrary} />;
+      return <EmailPipeline onSaveToLibrary={handleSaveToLibrary} researchDocs={researchDocs} />;
     }
     if (activeView === 'social-scheduler') {
       return <SocialScheduler researchDocs={researchDocs} />;

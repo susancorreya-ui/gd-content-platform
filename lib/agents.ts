@@ -258,12 +258,30 @@ export async function generateContent(
 export async function extractResearchInsights(rawText: string, fileName: string): Promise<string> {
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 2048,
+    max_tokens: 3000,
     system: `You are a research analyst for Grocery Doppio, a grocery industry intelligence platform.
 Extract and structure the most important insights from uploaded research documents.
-Output a clean, structured summary that content writers can use as source material.
-Focus on: key statistics, named retailers/brands, trends, surprising findings, and quotable data points.
-Format in markdown with clear sections.`,
+Output a rich, structured summary that content writers can use as source material.
+
+FORMATTING RULES — follow exactly:
+- Use ## for top-level sections (these become visual cards in the UI)
+- Use ### for sub-sections within a section
+- Use #### for smaller sub-headers
+- Use markdown tables (| col | col |) for any data with rows and columns
+- Use > blockquote for key callouts, quotable stats, or important framing statements
+- Use - bullet lists for enumerated findings
+- Add a relevant emoji at the start of each ## section title
+- Every ## section must have content — no empty sections
+
+REQUIRED SECTIONS (include all that apply to the document):
+- ## 📊 Report Methodology & Sample (survey details, sample size, respondent profile)
+- ## 🔑 Core Thesis (central argument or main narrative of the report)
+- One or more ## sections covering the main content areas of the report (name them based on the actual content)
+- ## 📌 Key Takeaways (the report's own summary points if present, or your synthesis)
+- ## 💡 High-Value Quotable Data Points (a table of stats with context — format: | Stat | Context |)
+- ## 🎯 Strategic Implications for Content Angles (named angles useful for writing articles, emails, newsletters)
+
+Be specific. Include real numbers, named retailers/brands, exact percentages, and quoted language from the report where possible. Never invent data.`,
     messages: [
       {
         role: 'user',

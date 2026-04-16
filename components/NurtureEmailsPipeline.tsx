@@ -5,7 +5,7 @@ import {
   Sparkles, BookOpen, AlertCircle, Copy, Check, ChevronRight,
   Mail, Clock, Users, MessageSquare, Video, Calendar, Link, Loader2,
 } from 'lucide-react';
-import { LibraryItem } from '@/types';
+import { LibraryItem, ResearchDoc } from '@/types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -18,6 +18,14 @@ interface ParsedEmail {
 
 interface NurtureEmailsPipelineProps {
   onSaveToLibrary: (item: Omit<LibraryItem, 'id' | 'createdAt'>) => void;
+  researchDocs?: ResearchDoc[];
+}
+
+function buildResearchContext(docs: ResearchDoc[]): string {
+  const usable = docs.filter(d => (d.extractedText || d.insights).trim());
+  if (!usable.length) return '';
+  return 'UPLOADED RESEARCH — use as additional context and reference:\n\n' +
+    usable.map(d => `[${d.name}]\n${(d.extractedText || d.insights).slice(0, 3000)}`).join('\n\n---\n\n');
 }
 
 // ─── Email metadata ──────────────────────────────────────────────────────────────
@@ -232,7 +240,7 @@ function IdlePlaceholder({ mode }: { mode: SequenceMode }) {
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 
-export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmailsPipelineProps) {
+export default function NurtureEmailsPipeline({ onSaveToLibrary, researchDocs = [] }: NurtureEmailsPipelineProps) {
   const [mode, setMode] = useState<SequenceMode>('lead');
 
   // ── Event fields ─────────────────────────────────────────────────────────────
@@ -312,6 +320,7 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
     setSaved(false);
 
     try {
+      const researchContext = buildResearchContext(researchDocs);
       if (mode === 'event') {
         const res = await fetch('/api/pipeline/nurture-emails', {
           method: 'POST',
@@ -319,7 +328,7 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
           body: JSON.stringify({
             eventName, eventShortName, eventDate, eventTime, timezone,
             sessionTopics, speakers, senderName, senderTitle, senderEmail, joinLink,
-            eventType, eventPageContent,
+            eventType, eventPageContent, researchContext,
           }),
         });
         const data = await res.json();
@@ -330,7 +339,7 @@ export default function NurtureEmailsPipeline({ onSaveToLibrary }: NurtureEmails
         const res = await fetch('/api/pipeline/lead-nurture', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ entryPoint, audience, topic, goals, senderName, senderTitle, senderEmail, assetUrl }),
+          body: JSON.stringify({ entryPoint, audience, topic, goals, senderName, senderTitle, senderEmail, assetUrl, researchContext }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);

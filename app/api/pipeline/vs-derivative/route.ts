@@ -16,12 +16,13 @@ BRAND VOICE:
 - Never invent statistics. Only use numbers present in the source content.`;
 
 export async function POST(req: NextRequest) {
-  const { sourceType, sourceContent, title, format, ctaUrl }: {
+  const { sourceType, sourceContent, title, format, ctaUrl, researchContext }: {
     sourceType: string;
     sourceContent: string;
     title: string;
     format: string;
     ctaUrl?: string;
+    researchContext?: string;
   } = await req.json();
 
   if (!sourceContent) {
@@ -39,7 +40,7 @@ VIDEO FORMAT: ${format || 'LinkedIn / YouTube (60–90 seconds)'}
 
 SOURCE CONTENT:
 ${sourceContent.slice(0, 12000)}
-
+${researchContext ? `\n${researchContext}` : ''}
 OUTPUT FORMAT — follow this exactly:
 
 [SCRIPT]

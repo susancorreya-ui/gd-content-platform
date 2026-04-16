@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import {
   Video, Calendar, FileText, Upload, X, Loader2, BookOpen, AlertCircle, Link, CheckCircle,
 } from 'lucide-react';
-import { LibraryItem } from '@/types';
+import { LibraryItem, ResearchDoc } from '@/types';
 import OutputPanel from './OutputPanel';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -19,6 +19,14 @@ type DerivativeSourceType =
 
 interface VideoScriptPipelineProps {
   onSaveToLibrary: (item: Omit<LibraryItem, 'id' | 'createdAt'>) => void;
+  researchDocs?: ResearchDoc[];
+}
+
+function buildResearchContext(docs: ResearchDoc[]): string {
+  const usable = docs.filter(d => (d.extractedText || d.insights).trim());
+  if (!usable.length) return '';
+  return 'UPLOADED RESEARCH — use as additional context and reference:\n\n' +
+    usable.map(d => `[${d.name}]\n${(d.extractedText || d.insights).slice(0, 3000)}`).join('\n\n---\n\n');
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
@@ -100,7 +108,7 @@ function IdlePlaceholder({ scriptType }: { scriptType: ScriptType }) {
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 
-export default function VideoScriptPipeline({ onSaveToLibrary }: VideoScriptPipelineProps) {
+export default function VideoScriptPipeline({ onSaveToLibrary, researchDocs = [] }: VideoScriptPipelineProps) {
   const [scriptType, setScriptType] = useState<ScriptType>('derivative');
 
   // Event recap fields
@@ -216,11 +224,12 @@ export default function VideoScriptPipeline({ onSaveToLibrary }: VideoScriptPipe
     setSaved(false);
 
     try {
+      const researchContext = buildResearchContext(researchDocs);
       if (scriptType === 'event-recap') {
         const res = await fetch('/api/pipeline/vs-event-recap', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventName, eventDate, venue, summary: eventSummary, keyMoments, speakers, format }),
+          body: JSON.stringify({ eventName, eventDate, venue, summary: eventSummary, keyMoments, speakers, format, researchContext }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
@@ -229,7 +238,7 @@ export default function VideoScriptPipeline({ onSaveToLibrary }: VideoScriptPipe
         const res = await fetch('/api/pipeline/vs-derivative', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceType, sourceContent, title, format, ctaUrl }),
+          body: JSON.stringify({ sourceType, sourceContent, title, format, ctaUrl, researchContext }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
