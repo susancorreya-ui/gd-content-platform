@@ -100,6 +100,21 @@ async function hydrateDates(items: Array<{ url: string; publishedAt: string }>):
   );
 }
 
+// ─── Privacy wall detection ───────────────────────────────────────────────────
+
+const PRIVACY_WALL_SIGNALS = [
+  'privacy notice', 'privacy policy', 'cookie policy', 'cookie notice',
+  'we use cookies', 'this site uses cookies', 'cookie consent',
+  'accept all cookies', 'manage cookies', 'your privacy choices',
+  'gdpr', 'ccpa', 'data protection notice',
+  'before you continue', 'your privacy',
+];
+
+function isPrivacyWall(text: string): boolean {
+  const lower = text.toLowerCase();
+  return PRIVACY_WALL_SIGNALS.filter(s => lower.includes(s)).length >= 2;
+}
+
 function detectType(url: string, title: string): ArticleType {
   if (/prnewswire|businesswire|globenewswire|accesswire/i.test(url)) return 'pr';
   if (/\/ir\/|investor|earnings|quarterly|annual.report/i.test(url)) return 'earnings';
@@ -145,6 +160,7 @@ async function tavilySearch(query: string): Promise<Omit<FeedItem, 'id' | 'pilla
       const ts = new Date(r.published_date).getTime();
       return isNaN(ts) || ts >= CUTOFF_DATE;
     })
+    .filter(r => !isPrivacyWall(r.content || ''))
     .map(r => {
       let host = '';
       try { host = new URL(r.url).hostname.replace('www.', ''); } catch { /* */ }
