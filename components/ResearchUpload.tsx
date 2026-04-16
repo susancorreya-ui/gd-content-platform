@@ -581,16 +581,18 @@ export default function ResearchUpload({ docs, onDocAdded, onDocRemoved }: Resea
       const res = await fetch('/api/research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawText, fileName: file.name }),
+        body: JSON.stringify({ rawText: rawText.slice(0, 50000), fileName: file.name }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const text = await res.text();
+      let data: { insights?: string; error?: string };
+      try { data = JSON.parse(text); } catch { throw new Error('Server error — response was not JSON'); }
+      if (!res.ok || !data.insights) throw new Error(data.error ?? 'Extraction failed');
       const doc: ResearchDoc = {
         id: `doc-${Date.now()}`,
         name: file.name,
         size: file.size,
         extractedText: rawText,
-        insights: data.insights,
+        insights: data.insights!,
         uploadedAt: new Date(),
       };
       onDocAdded(doc);
