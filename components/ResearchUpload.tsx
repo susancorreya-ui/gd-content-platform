@@ -573,6 +573,10 @@ export default function ResearchUpload({ docs, onDocAdded, onDocRemoved }: Resea
   const selectedDoc = docs.find(d => d.id === selectedId) ?? docs[docs.length - 1] ?? null;
 
   const processFile = async (file: File) => {
+    if (file.size > 4 * 1024 * 1024) {
+      setError('File too large — please use a file under 4 MB. For larger reports, copy and paste the key sections as a .txt file.');
+      return;
+    }
     setIsProcessing(true);
     setProcessingFile(file.name);
     setError('');
@@ -661,7 +665,7 @@ export default function ResearchUpload({ docs, onDocAdded, onDocRemoved }: Resea
                     {isDragActive ? 'Drop your file here' : 'Drop a file or click to browse'}
                   </div>
                   <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                    PDF, DOCX, PPTX, XLSX, CSV, TXT
+                    PDF, DOCX, PPTX, XLSX, CSV, TXT · max 4 MB
                   </div>
                 </div>
               </div>

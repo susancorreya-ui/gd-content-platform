@@ -20,10 +20,16 @@ export async function parseDocument(file: File): Promise<string> {
   });
 
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || 'Failed to parse document');
+    let msg = `Upload failed (${res.status})`;
+    if (res.status === 413) msg = 'File too large — please use a file under 4 MB';
+    else {
+      try { const e = await res.json(); msg = e.error || msg; } catch { /* plain-text error body */ }
+    }
+    throw new Error(msg);
   }
 
-  const data = await res.json();
-  return data.text;
+  const raw = await res.text();
+  let data: { text?: string };
+  try { data = JSON.parse(raw); } catch { throw new Error('Parser returned an unexpected response'); }
+  return data.text ?? '';
 }
