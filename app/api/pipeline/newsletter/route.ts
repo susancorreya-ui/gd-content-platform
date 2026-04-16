@@ -28,7 +28,7 @@ Subject: Doppio Direct: [Compelling subtitle — frames the unifying theme acros
 **[Story headline — mirrors the source title or a sharper version of it]**
 [2–4 sentences. What the content covers. Lead with the most striking number or finding if available. Why it matters to this audience. Specific and concrete — no vague generalities.]
 
-[CTA — one sentence, action verb, italicised-style. E.g. "Explore the full breakdown." / "Watch the Q1 performance video." / "Read the research." / "Build your agenda." End with a period, no URL in the body copy.]
+[CTA — one sentence, action verb, formatted as a markdown hyperlink using the story's source URL. E.g. "[Explore the full breakdown.](url)" / "[Watch the Q1 performance video.](url)" / "[Read the research.](url)" — always link the full CTA sentence to the source URL.]
 
 [Repeat for each story — same structure every time]
 
@@ -38,7 +38,7 @@ RULES:
 - Subject line always starts "Doppio Direct: "
 - Intro is one paragraph — no bullet points
 - Each story block: bold headline, body copy, CTA sentence — nothing else
-- CTAs are short, direct, action-led — never "click here" or "learn more"
+- CTAs are short, direct, action-led — never "click here" or "learn more" — always formatted as a markdown hyperlink to the story's source URL
 - If an event is included, it gets its own story block positioned logically (usually first or last)
 - If a source is a video/performance breakdown, the CTA should reference watching, not reading
 - Never invent statistics not present in the source content provided`;
