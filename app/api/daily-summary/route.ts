@@ -22,7 +22,7 @@ export interface DailySummaryEntry {
   sources: { title: string; url: string }[];
 }
 
-async function generateDailySummary(date: string): Promise<DailySummaryEntry> {
+export async function generateDailySummary(date: string): Promise<DailySummaryEntry> {
   const dateObj = new Date(date);
   const cutoff = new Date(date);
   cutoff.setDate(cutoff.getDate() - 7);
