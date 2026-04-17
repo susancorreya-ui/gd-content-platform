@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { unstable_cache, revalidateTag } from 'next/cache';
+import { unstable_cache } from 'next/cache';
 import Anthropic from '@anthropic-ai/sdk';
 import { webSearch } from '@/lib/webSearch';
 
@@ -150,8 +150,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { date }: { date: string } = await req.json();
-    revalidateTag('daily-summary');
-    const entry = await getCachedDailySummary(date);
+    const entry = await generateDailySummary(date);
     return NextResponse.json(entry);
   } catch (err) {
     return NextResponse.json(
