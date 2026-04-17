@@ -393,6 +393,17 @@ function formatDate(iso: string): string {
   });
 }
 
+function formatDateOnly(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  return d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric',
+    ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+  });
+}
+
 function faviconUrl(domain: string) {
   return `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
 }
@@ -441,7 +452,7 @@ function useLatestSignals(): { signals: FeedItem[]; fetchedAt: string | null } {
 
 function SignalCard({ item, onNavigate }: { item: FeedItem; onNavigate: (id: string) => void }) {
   const color = PILLAR_COLORS[item.pillar] || '#00AA50';
-  const date = formatDate(item.publishedAt);
+  const date = formatDateOnly(item.publishedAt);
 
   return (
     <div
