@@ -83,6 +83,7 @@ export const TOP_20_GROCERS: {
   ticker?: string;
   ownedDomains: string[];
   irDomain?: string;
+  aliases: string[];   // all name variants that count as a mention of this company
 }[] = [
   {
     name: 'Ahold Delhaize',
@@ -91,6 +92,7 @@ export const TOP_20_GROCERS: {
     ticker: 'AD',
     ownedDomains: ['aholddelhaize.com'],
     irDomain: 'aholddelhaize.com',
+    aliases: ['ahold delhaize', 'ahold', 'delhaize', 'stop & shop', 'giant food', 'hannaford', 'food lion'],
   },
   {
     name: 'Albertsons',
@@ -99,12 +101,14 @@ export const TOP_20_GROCERS: {
     ticker: 'ACI',
     ownedDomains: ['albertsonscompanies.com', 'investors.albertsonscompanies.com'],
     irDomain: 'investors.albertsonscompanies.com',
+    aliases: ['albertsons', 'safeway', 'vons', 'jewel-osco', "shaw's", 'acme markets'],
   },
   {
     name: 'Aldi',
     revenue: '$18B',
     isPublic: false,
     ownedDomains: ['corporate.aldi.us', 'aldi.us'],
+    aliases: ['aldi'],
   },
   {
     name: 'Costco',
@@ -113,18 +117,21 @@ export const TOP_20_GROCERS: {
     ticker: 'COST',
     ownedDomains: ['investor.costco.com', 'costco.com'],
     irDomain: 'investor.costco.com',
+    aliases: ['costco'],
   },
   {
     name: 'Food Lion',
     revenue: '$11B',
     isPublic: false,
     ownedDomains: ['foodlion.com'],
+    aliases: ['food lion'],
   },
   {
     name: 'Giant Eagle',
     revenue: '$14B',
     isPublic: false,
     ownedDomains: ['gianteagle.com'],
+    aliases: ['giant eagle', 'getgo'],
   },
   {
     name: 'Grocery Outlet',
@@ -133,24 +140,28 @@ export const TOP_20_GROCERS: {
     ticker: 'GO',
     ownedDomains: ['investors.groceryoutlet.com', 'groceryoutlet.com'],
     irDomain: 'investors.groceryoutlet.com',
+    aliases: ['grocery outlet', 'grocery outlet bargain market'],
   },
   {
     name: 'H-E-B',
     revenue: '$30B',
     isPublic: false,
     ownedDomains: ['newsroom.heb.com', 'heb.com'],
+    aliases: ['h-e-b', 'heb', 'central market'],
   },
   {
     name: 'Hannaford',
     revenue: '$2B',
     isPublic: false,
     ownedDomains: ['hannaford.com'],
+    aliases: ['hannaford'],
   },
   {
     name: 'Hy-Vee',
     revenue: '$13B',
     isPublic: false,
     ownedDomains: ['hy-vee.com'],
+    aliases: ['hy-vee', 'hyvee'],
   },
   {
     name: 'Kroger',
@@ -159,24 +170,28 @@ export const TOP_20_GROCERS: {
     ticker: 'KR',
     ownedDomains: ['ir.kroger.com', 'thekrogerco.com'],
     irDomain: 'ir.kroger.com',
+    aliases: ['kroger', 'fred meyer', 'king soopers', 'harris teeter', "smith's food", 'ralphs', 'dillons', 'fry\'s food'],
   },
   {
     name: 'Meijer',
     revenue: '$19B',
     isPublic: false,
     ownedDomains: ['meijer.com'],
+    aliases: ['meijer'],
   },
   {
     name: 'Publix',
     revenue: '$34B',
     isPublic: false,
     ownedDomains: ['corporate.publix.com'],
+    aliases: ['publix'],
   },
   {
     name: 'Stop & Shop',
     revenue: '$1.1B',
     isPublic: false,
     ownedDomains: ['stopandshop.com'],
+    aliases: ['stop & shop', 'stop and shop'],
   },
   {
     name: 'Target',
@@ -185,12 +200,14 @@ export const TOP_20_GROCERS: {
     ticker: 'TGT',
     ownedDomains: ['corporate.target.com', 'investors.target.com'],
     irDomain: 'investors.target.com',
+    aliases: ['target'],
   },
   {
     name: "Trader Joe's",
     revenue: '$16B',
     isPublic: false,
     ownedDomains: ['traderjoes.com'],
+    aliases: ["trader joe's", 'trader joes'],
   },
   {
     name: 'Walmart',
@@ -199,6 +216,7 @@ export const TOP_20_GROCERS: {
     ticker: 'WMT',
     ownedDomains: ['corporate.walmart.com'],
     irDomain: 'stock.walmart.com',
+    aliases: ['walmart', "sam's club", 'walmart+'],
   },
   {
     name: 'Weis Markets',
@@ -207,18 +225,21 @@ export const TOP_20_GROCERS: {
     ticker: 'WMK',
     ownedDomains: ['weismarkets.com'],
     irDomain: 'weismarkets.com',
+    aliases: ['weis markets', 'weis'],
   },
   {
     name: 'Whole Foods',
     revenue: '$17B',
     isPublic: false,
     ownedDomains: ['media.wholefoodsmarket.com', 'wholefoodsmarket.com'],
+    aliases: ['whole foods', 'whole foods market'],
   },
   {
     name: 'Winn-Dixie',
     revenue: '$12B',
     isPublic: false,
     ownedDomains: ['segrocers.com', 'winndixie.com'],
+    aliases: ['winn-dixie', 'winn dixie', 'southeastern grocers'],
   },
 ];
 
@@ -254,6 +275,12 @@ const IRRELEVANT_URL_PATTERNS = [
   /\/privacy/i, /\/cookie/i, /\/terms/i, /\/accessibility/i,
   /\/press-kit/i, /\/brand-assets/i, /\/media-kit/i,
   /\/newsletter-signup/i, /\/subscribe/i,
+  // Consumer-facing app/product/savings pages — not news
+  /\/app$/i, /\/app\//i, /\/mobile-app/i, /\/download/i,
+  /\/savings$/i, /\/deals$/i, /\/specials$/i, /\/promotions$/i,
+  /\/pharmacy$/i, /\/fuel(-rewards?)?$/i, /\/gas$/i,
+  /\/gift-?cards?$/i, /\/floral$/i, /\/deli$/i, /\/bakery$/i,
+  /\/services$/i, /\/departments$/i,
 ];
 
 const IRRELEVANT_TITLE_PATTERNS = [
@@ -270,7 +297,7 @@ const RELEVANCE_KEYWORDS = [
   // AI & technology
   'artificial intelligence', ' ai ', 'machine learning', 'generative', 'predictive',
   'algorithm', 'neural', 'llm', 'genai', 'technology', 'tech', 'digital',
-  'software', 'platform', 'app ', 'application', 'tool', 'solution', 'system',
+  'software', 'platform', 'application', 'tool', 'solution', 'system',
   'innovation', 'initiative', 'launch', 'debut', 'roll out', 'pilot', 'deploy',
   // Commerce
   'ecommerce', 'e-commerce', 'online grocery', 'delivery', 'pickup', 'bopis',
@@ -298,6 +325,33 @@ const RELEVANCE_KEYWORDS = [
 
 function isIrrelevantUrl(url: string): boolean {
   return IRRELEVANT_URL_PATTERNS.some(p => p.test(url));
+}
+
+// Returns true only if the article is genuinely about this specific company.
+// Rule: own-domain URLs always pass; third-party articles must name the company
+// (or a known alias/ticker) in the TITLE. We do not check the content body —
+// a vendor article that mentions the company once in passing would otherwise
+// appear as that company's news, which is what we're preventing.
+function mentionsCompany(
+  title: string,
+  _content: string,
+  company: typeof TOP_20_GROCERS[0],
+  url: string,
+): boolean {
+  // 1. Own-domain — the URL itself proves it is the company's content
+  const allOwnedDomains = [...company.ownedDomains, ...(company.irDomain ? [company.irDomain] : [])];
+  try {
+    const hostname = new URL(url).hostname.replace('www.', '');
+    if (allOwnedDomains.some(d => hostname.endsWith(d))) return true;
+  } catch { /* ignore */ }
+
+  // 2. Title must explicitly name the company or a known alias / ticker
+  const titleLower = title.toLowerCase();
+  const terms = [
+    ...company.aliases.map(a => a.toLowerCase()),
+    ...(company.ticker ? [company.ticker.toLowerCase()] : []),
+  ];
+  return terms.some(t => titleLower.includes(t));
 }
 
 function isIrrelevantTitle(title: string): boolean {
@@ -363,36 +417,30 @@ async function searchCompany(
   ];
 
   const searches = await Promise.allSettled([
-    // Source 1: company's own newsroom / IR
+    // Source 1: company's own newsroom / IR pages
     webSearch({
-      query: `${company.name} technology digital AI retail media automation personalization 2026`,
+      query: `${company.name} news 2026`,
       searchDepth: 'advanced',
-      maxResults: 5,
+      maxResults: 8,
       days: 365,
       includeDomains: allDomains,
     }),
-    // Source 2: trusted third-party industry + financial press
+    // Source 2: industry & financial press — latest news about this company specifically
     webSearch({
-      query: `"${company.name}" grocery technology digital AI ecommerce retail media supply chain 2026`,
+      query: `"${company.name}" news 2026`,
       searchDepth: 'advanced',
-      maxResults: 6,
-      days: 365,
+      maxResults: 8,
+      days: 90,
+      topic: 'news',
       includeDomains: TRUSTED_SOURCES,
     }),
-    // Source 3: earnings + financial news from trusted press
+    // Source 3: earnings & financial results
     webSearch({
-      query: `"${company.name}" earnings revenue quarterly results financial 2026`,
+      query: `"${company.name}" earnings results financial 2026`,
       searchDepth: 'advanced',
       maxResults: 4,
       days: 365,
-      includeDomains: TRUSTED_SOURCES,
-    }),
-    // Source 4: broader news — launches, partnerships, initiatives, announcements
-    webSearch({
-      query: `"${company.name}" launch app platform initiative partnership announcement 2026`,
-      searchDepth: 'advanced',
-      maxResults: 4,
-      days: 365,
+      topic: 'news',
       includeDomains: TRUSTED_SOURCES,
     }),
   ]);
@@ -421,7 +469,7 @@ async function searchCompany(
       if (isIrrelevantUrl(r.url)) return false;
       if (isIrrelevantTitle(r.title)) return false;
       if (isPrivacyWall(r.content || '')) return false;
-      if (!isRelevant(r.title, r.content || '')) return false;
+      if (!mentionsCompany(r.title, r.content || '', company, r.url)) return false;
       seen.add(r.url);
       return true;
     })

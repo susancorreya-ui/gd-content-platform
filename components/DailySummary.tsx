@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, ChevronDown, ChevronUp, ExternalLink, Newspaper, Trash2 } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronUp, ExternalLink, Loader2, Newspaper, Trash2 } from 'lucide-react';
 import { DailySummaryEntry } from '@/app/api/daily-summary/route';
+import { useDailySummary } from '@/lib/useDailySummary';
 
 function renderSummaryMarkdown(text: string): string {
   return text
@@ -183,22 +184,37 @@ function SummaryCard({ entry, onDelete }: { entry: DailySummaryEntry; onDelete: 
   );
 }
 
+const STORAGE_KEY = 'gd_daily_summaries';
+
+function loadStoredEntries(): DailySummaryEntry[] {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch { return []; }
+}
+
 export default function DailySummary() {
+  const { today, archive, isGenerating } = useDailySummary();
   const [entries, setEntries] = useState<DailySummaryEntry[]>([]);
 
+  // Sync hook state + any persisted entries into the display list
   useEffect(() => {
-    try {
-      const stored: DailySummaryEntry[] = JSON.parse(localStorage.getItem('gd_approved_summaries') || '[]');
-      stored.sort((a, b) => a.date.localeCompare(b.date));
-      setEntries(stored);
-    } catch {}
-  }, []);
+    const stored = loadStoredEntries();
+    // Merge hook state with stored (hook may have a freshly generated today entry)
+    const map = new Map<string, DailySummaryEntry>();
+    stored.forEach(e => map.set(e.date, e));
+    if (today) map.set(today.date, today);
+    archive.forEach(e => map.set(e.date, e));
+    const merged = Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
+    setEntries(merged);
+  }, [today, archive]);
 
   const handleDelete = (date: string) => {
     const updated = entries.filter(e => e.date !== date);
     setEntries(updated);
-    try { localStorage.setItem('gd_approved_summaries', JSON.stringify(updated)); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {}
   };
+
+  const allCount = entries.length + (isGenerating ? 1 : 0);
 
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--background)' }}>
@@ -211,24 +227,43 @@ export default function DailySummary() {
           <div>
             <h1 className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>Daily Summary</h1>
             <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-              {entries.length > 0 ? `${entries.length} approved ${entries.length === 1 ? 'summary' : 'summaries'}` : 'Approved and scheduled summaries'}
+              {isGenerating
+                ? "Generating today\u2019s summary\u2026"
+                : allCount > 0
+                  ? `${allCount} ${allCount === 1 ? 'summary' : 'summaries'} · auto-generated daily`
+                  : 'Auto-generated every day'}
             </p>
           </div>
         </div>
+        {isGenerating && (
+          <Loader2 size={15} className="ml-auto animate-spin" style={{ color: 'var(--accent)' }} />
+        )}
       </div>
 
       {/* List */}
       <div className="flex-1 overflow-y-auto px-6 py-5 max-w-3xl">
-        {entries.length === 0 ? (
+        {isGenerating && entries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Loader2 size={28} className="animate-spin mb-3" style={{ color: 'var(--accent)', opacity: 0.6 }} />
+            <p className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>Generating today&rsquo;s summary&hellip;</p>
+            <p className="text-[12px] mt-1" style={{ color: 'var(--text-secondary)', opacity: 0.6 }}>Fetching the latest grocery industry news</p>
+          </div>
+        ) : entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Newspaper size={32} style={{ color: 'var(--text-secondary)', marginBottom: 12, opacity: 0.3 }} />
             <p className="text-[14px] font-medium" style={{ color: 'var(--text-secondary)' }}>No summaries yet</p>
             <p className="text-[12px] mt-1" style={{ color: 'var(--text-secondary)', opacity: 0.6 }}>
-              Go to Intelligence, click &ldquo;Daily Summary&rdquo;, then Post or Schedule to save here
+              Today's summary will appear here automatically
             </p>
           </div>
         ) : (
           <div className="space-y-3">
+            {isGenerating && (
+              <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+                <Loader2 size={13} className="animate-spin flex-shrink-0" style={{ color: 'var(--accent)' }} />
+                <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>Generating today&rsquo;s summary&hellip;</span>
+              </div>
+            )}
             {entries.map(entry => (
               <SummaryCard key={entry.date} entry={entry} onDelete={() => handleDelete(entry.date)} />
             ))}

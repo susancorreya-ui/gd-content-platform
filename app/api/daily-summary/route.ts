@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache, revalidateTag } from 'next/cache';
 import Anthropic from '@anthropic-ai/sdk';
 import { webSearch } from '@/lib/webSearch';
 
@@ -21,73 +22,60 @@ export interface DailySummaryEntry {
   sources: { title: string; url: string }[];
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const { date }: { date: string } = await req.json();
+async function generateDailySummary(date: string): Promise<DailySummaryEntry> {
+  const dateObj = new Date(date);
+  const cutoff = new Date(date);
+  cutoff.setDate(cutoff.getDate() - 7);
+  const cutoffMs = cutoff.getTime();
 
-    const dateObj = new Date(date);
-    const cutoff = new Date(date);
-    cutoff.setDate(cutoff.getDate() - 7);
-    const cutoffMs = cutoff.getTime();
+  const monthYear = dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-    // Use the actual month + year in queries so Tavily doesn't return older months
-    const monthYear = dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); // e.g. "March 2026"
+  const allResults: { title: string; url: string; content: string; published_date?: string }[] = [];
 
-    const allResults: { title: string; url: string; content: string; published_date?: string }[] = [];
+  const searches = await Promise.allSettled([
+    webSearch({ query: `grocery retailer AI artificial intelligence automation launch announcement ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
+    webSearch({ query: `grocery retail online omnichannel personalization app launch ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
+    webSearch({ query: `grocery retail media network supply chain technology news ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
+    webSearch({ query: `Walmart Kroger Costco Albertsons Target Publix grocery technology news ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
+  ]);
 
-    const searches = await Promise.allSettled([
-      // AI + Automation news at top grocery retailers
-      webSearch({ query: `grocery retailer AI artificial intelligence automation launch announcement ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
-      // Online/omnichannel commerce + Personalization
-      webSearch({ query: `grocery retail online omnichannel personalization app launch ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
-      // Retail Media + Supply Chain
-      webSearch({ query: `grocery retail media network supply chain technology news ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
-      // Top retailers: any technology or digital news
-      webSearch({ query: `Walmart Kroger Costco Albertsons Target Publix grocery technology news ${monthYear}`, maxResults: 6, days: 7, topic: 'news', includeDomains: CREDIBLE_DOMAINS }),
-    ]);
-
-    for (const r of searches) {
-      if (r.status === 'fulfilled') {
-        allResults.push(...r.value.map(item => ({
-          title: item.title,
-          url: item.url,
-          content: item.content,
-          published_date: item.published_date || undefined,
-        })));
-      }
+  for (const r of searches) {
+    if (r.status === 'fulfilled') {
+      allResults.push(...r.value.map(item => ({
+        title: item.title,
+        url: item.url,
+        content: item.content,
+        published_date: item.published_date || undefined,
+      })));
     }
+  }
 
-    // Deduplicate by URL
-    const seen = new Set<string>();
-    const deduped = allResults.filter(r => {
-      if (!r.url || seen.has(r.url)) return false;
-      seen.add(r.url);
-      return true;
-    });
+  const seen = new Set<string>();
+  const deduped = allResults.filter(r => {
+    if (!r.url || seen.has(r.url)) return false;
+    seen.add(r.url);
+    return true;
+  });
 
-    // With topic:"news", articles should have published_date.
-    // Keep only results with a confirmed date within the 7-day window.
-    // Drop undated results — they are typically not news articles.
-    const datedRecent = deduped.filter(r => {
-      if (!r.published_date) return false;
-      const ts = new Date(r.published_date).getTime();
-      return !isNaN(ts) && ts >= cutoffMs;
-    });
+  const datedRecent = deduped.filter(r => {
+    if (!r.published_date) return false;
+    const ts = new Date(r.published_date).getTime();
+    return !isNaN(ts) && ts >= cutoffMs;
+  });
 
-    // Fallback: if very few dated results, include undated ones (Tavily days:7 as safety net)
-    const uniqueResults = datedRecent.length >= 4
-      ? datedRecent.slice(0, 20)
-      : [...datedRecent, ...deduped.filter(r => !r.published_date)].slice(0, 20);
+  const uniqueResults = datedRecent.length >= 4
+    ? datedRecent.slice(0, 20)
+    : [...datedRecent, ...deduped.filter(r => !r.published_date)].slice(0, 20);
 
-    const dateLabel = dateObj.toLocaleDateString('en-US', {
-      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-    });
+  const dateLabel = dateObj.toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  });
 
-    const signals = uniqueResults
-      .map((r, i) => `${i + 1}. "${r.title}"\n   URL: ${r.url}\n   Published: ${r.published_date || 'this week'}\n   Summary: ${(r.content || '').slice(0, 180)}`)
-      .join('\n\n');
+  const signals = uniqueResults
+    .map((r, i) => `${i + 1}. "${r.title}"\n   URL: ${r.url}\n   Published: ${r.published_date || 'this week'}\n   Summary: ${(r.content || '').slice(0, 180)}`)
+    .join('\n\n');
 
-    const prompt = `You are the editorial director at Grocery Doppio, writing a daily intelligence brief for C-level and senior executives at major grocery retailers and grocery-related technology companies. Your audience — CEOs, CIOs, CTOs, CMOs, and Chief Digital Officers — makes decisions that affect billions in revenue and millions of customers. Every sentence must earn its place by delivering a strategic insight, a competitive signal, or an implication they can act on.
+  const prompt = `You are the editorial director at Grocery Doppio, writing a daily intelligence brief for C-level and senior executives at major grocery retailers and grocery-related technology companies. Your audience — CEOs, CIOs, CTOs, CMOs, and Chief Digital Officers — makes decisions that affect billions in revenue and millions of customers. Every sentence must earn its place by delivering a strategic insight, a competitive signal, or an implication they can act on.
 
 The brief tracks the top 20 US grocery retailers (Walmart, Kroger, Costco, Albertsons, Target, Publix, H-E-B, Ahold Delhaize, Whole Foods, Amazon Fresh, Aldi, Meijer, Wegmans, Trader Joe's, ShopRite, BJ's Wholesale, Sprouts, Dollar General, Winn-Dixie, Southeastern Grocers) across the themes that matter most to their business: artificial intelligence and machine learning adoption, store and supply chain automation, online and omnichannel commerce, customer personalization, retail media networks, and supply chain resilience.
 
@@ -123,29 +111,52 @@ Rules:
 - Do not include a date header
 - Do NOT output any reasoning, signal analysis, filtering notes, or commentary — start your response immediately with the brief content itself`;
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }],
-    });
+  const msg = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1000,
+    messages: [{ role: 'user', content: prompt }],
+  });
 
-    const summary = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '';
+  const summary = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '';
+  const sources = uniqueResults.map(r => ({ title: r.title, url: r.url }));
 
-    const sources = uniqueResults.map(r => ({ title: r.title, url: r.url }));
+  return { date, dateLabel, summary, generatedAt: new Date().toISOString(), sources };
+}
 
-    const entry: DailySummaryEntry = {
-      date,
-      dateLabel,
-      summary,
-      generatedAt: new Date().toISOString(),
-      sources,
-    };
+// Server-side cache shared by the cron job and GET requests.
+// The cron revalidates this tag daily at 11 AM before regenerating.
+export const getCachedDailySummary = unstable_cache(
+  generateDailySummary,
+  ['daily-summary'],
+  { tags: ['daily-summary'], revalidate: false },
+);
 
+// GET — returns the cached summary (pre-generated by cron at 11 AM).
+// If called before the cron runs, it generates once and caches the result.
+export async function GET(req: NextRequest) {
+  const date = req.nextUrl.searchParams.get('date') || new Date().toISOString().slice(0, 10);
+  try {
+    const entry = await getCachedDailySummary(date);
+    return NextResponse.json(entry);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Generation failed' },
+      { status: 500 },
+    );
+  }
+}
+
+// POST — manual regeneration: busts the cache and returns a fresh summary.
+export async function POST(req: NextRequest) {
+  try {
+    const { date }: { date: string } = await req.json();
+    revalidateTag('daily-summary');
+    const entry = await getCachedDailySummary(date);
     return NextResponse.json(entry);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Daily summary generation failed' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

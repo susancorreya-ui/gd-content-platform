@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Zap, ArrowRight, RefreshCw, TrendingUp, BookOpen, BarChart2, Video, Library, Upload, Mail, Newspaper as NewsletterIcon, MailCheck, CalendarDays, ChevronRight } from 'lucide-react';
+import { Zap, ArrowRight, RefreshCw, TrendingUp, BookOpen, BarChart2, Video, Library, Upload, Mail, Newspaper as NewsletterIcon, MailCheck, CalendarDays, ChevronRight, Loader2, Building2 } from 'lucide-react';
 import { FeedItem } from '@/app/api/research-feed/route';
+import { useDailySummary } from '@/lib/useDailySummary';
+import { useCompaniesFeed } from '@/lib/useCompaniesFeed';
+import { DailySummaryEntry } from '@/app/api/daily-summary/route';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -16,14 +19,6 @@ const PILLAR_COLORS: Record<string, string> = {
   'Supply Chain':            '#10b981',
 };
 
-const STATS = [
-  { prefix: '',  numeric: 93,   suffix: '%',  decimals: 0, label: 'Grocery C-Suite say adopting AI will be a necessity to compete',       color: '#6366f1', trend: 'AI in Grocery 2025 · Grocery Doppio'                      },
-  { prefix: '',  numeric: 9.7,  suffix: '%',  decimals: 1, label: 'Expected increase in digital grocery sales in 2025',                   color: '#3b82f6', trend: '2025 Digital Grocery Outlook · Grocery Doppio'           },
-  { prefix: '',  numeric: 71,   suffix: '%',  decimals: 0, label: 'Grocers planning to invest in advanced fulfillment solutions in 2025',  color: '#f59e0b', trend: '2025 Digital Grocery Outlook · Grocery Doppio'           },
-  { prefix: '$', numeric: 8.5,  suffix: 'B',  decimals: 1, label: 'Projected size of the grocery retail media network market in 2024',    color: '#8b5cf6', trend: 'In-Store Media Monetization · Grocery Doppio'           },
-  { prefix: '',  numeric: 53,   suffix: '%',  decimals: 0, label: 'Grocers investing in AI-powered personalization as new technology',    color: '#ec4899', trend: '2025 Digital Grocery Outlook · Grocery Doppio'           },
-  { prefix: '$', numeric: 72.1, suffix: 'B',  decimals: 1, label: 'AI value unlock potential in grocery supply chain alone by 2030',      color: '#10b981', trend: 'AI in Grocery 2025 · Grocery Doppio'                      },
-];
 
 
 // ─── Company social feed ──────────────────────────────────────────────────────
@@ -55,52 +50,46 @@ interface SocialPost {
 
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 
-function useCompanyPosts(): SocialPost[] {
-  const [posts, setPosts] = useState<SocialPost[]>([]);
+function useCompanyPosts(): { posts: SocialPost[]; fetchedAt: string; isLoading: boolean } {
+  const { companies, fetchedAt, isLoading } = useCompaniesFeed();
 
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem('gd_companies_feed_v5');
-      if (!cached) return;
-      const { companies } = JSON.parse(cached);
-      const cutoff = Date.now() - TWO_DAYS_MS;
+  const posts = useMemo(() => {
+    // Deduplicate by URL — same article can appear under multiple companies
+    const seenUrls = new Set<string>();
+    const all: SocialPost[] = companies.flatMap(c =>
+      c.developments
+        .filter(d => {
+          if (!d.url || seenUrls.has(d.url)) return false;
+          seenUrls.add(d.url);
+          return true;
+        })
+        .map(d => ({ ...d, company: c.company }))
+    );
 
-      const all: SocialPost[] = (companies || []).flatMap((c: { company: string; developments: SocialPost[] }) =>
-        (c.developments || []).map((d: SocialPost) => ({ ...d, company: c.company }))
-      );
+    // Sort newest first; undated items go to the bottom
+    all.sort((a, b) => {
+      const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return tb - ta;
+    });
 
-      // Keep posts from last 2 days; if no date keep them too (trust the source)
-      const recent = all.filter(p => {
-        if (!p.publishedAt) return true;
-        const ts = new Date(p.publishedAt).getTime();
-        return isNaN(ts) || ts >= cutoff;
-      });
+    // Interleave so the marquee mixes different companies
+    const byCompany: Record<string, SocialPost[]> = {};
+    for (const p of all) {
+      (byCompany[p.company] ??= []).push(p);
+    }
+    const interleaved: SocialPost[] = [];
+    const queues = Object.values(byCompany);
+    let i = 0;
+    while (interleaved.length < 30 && queues.some(q => q.length > 0)) {
+      const q = queues[i % queues.length];
+      if (q.length > 0) interleaved.push(q.shift()!);
+      i++;
+    }
+    return interleaved;
+  }, [companies]);
 
-      recent.sort((a, b) => {
-        const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-        const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-        return tb - ta;
-      });
-
-      // Interleave companies so the feed mixes different grocers
-      const byCompany: Record<string, SocialPost[]> = {};
-      for (const p of recent) {
-        (byCompany[p.company] ??= []).push(p);
-      }
-      const interleaved: SocialPost[] = [];
-      const queues = Object.values(byCompany);
-      let i = 0;
-      while (interleaved.length < 24 && queues.some(q => q.length > 0)) {
-        const q = queues[i % queues.length];
-        if (q.length > 0) interleaved.push(q.shift()!);
-        i++;
-      }
-
-      setPosts(interleaved);
-    } catch { /* ignore */ }
-  }, []);
-
-  return posts;
+  return { posts, fetchedAt: fetchedAt ?? '', isLoading };
 }
 
 const TYPE_LABELS: Record<string, { label: string; bg: string; color: string }> = {
@@ -110,10 +99,10 @@ const TYPE_LABELS: Record<string, { label: string; bg: string; color: string }> 
   social:   { label: 'Social',   bg: 'rgba(99,102,241,0.12)',  color: '#6366f1' },
 };
 
-function SocialPostCard({ post }: { post: SocialPost }) {
+function SocialPostCard({ post, fetchedAt }: { post: SocialPost; fetchedAt: string }) {
   const color = avatarColor(post.company);
   const initials = avatarInitials(post.company);
-  const age = timeAgo(post.publishedAt);
+  const date = formatDate(post.publishedAt) || timeAgo(post.publishedAt) || formatDate(fetchedAt) || timeAgo(fetchedAt);
   const typeStyle = TYPE_LABELS[post.type] || TYPE_LABELS.news;
   const pillarColor = PILLAR_COLORS[post.pillar] || '#00AA50';
 
@@ -158,9 +147,6 @@ function SocialPostCard({ post }: { post: SocialPost }) {
           <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {post.company}
           </p>
-          {age && (
-            <p style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '1px' }}>{age}</p>
-          )}
         </div>
         <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '20px', background: typeStyle.bg, color: typeStyle.color, flexShrink: 0 }}>
           {typeStyle.label}
@@ -181,28 +167,21 @@ function SocialPostCard({ post }: { post: SocialPost }) {
         </p>
       )}
 
-      {/* Footer: pillar + source favicon */}
+      {/* Footer: pillar + date */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
         <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '20px', background: pillarColor + '15', color: pillarColor }}>
           {post.pillar}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={faviconUrl(post.sourceDomain)} alt="" width={12} height={12} style={{ borderRadius: '2px' }}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-          <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{post.sourceDomain}</span>
-        </div>
+        {date && (
+          <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)' }}>{date}</span>
+        )}
       </div>
     </a>
   );
 }
 
 function CompanySocialFeed({ onNavigate }: { onNavigate: (id: string) => void }) {
-  const posts = useCompanyPosts();
-
-  if (posts.length === 0) return null;
-
-  // Duplicate for seamless infinite loop
+  const { posts, fetchedAt, isLoading } = useCompanyPosts();
   const doubled = [...posts, ...posts];
 
   return (
@@ -216,12 +195,10 @@ function CompanySocialFeed({ onNavigate }: { onNavigate: (id: string) => void })
           75%, 100% { transform: scale(2); opacity: 0; }
         }
         .gd-marquee-track {
-          animation: gd-marquee ${posts.length * 4}s linear infinite;
+          animation: gd-marquee ${Math.max(posts.length, 1) * 4}s linear infinite;
           will-change: transform;
         }
-        .gd-marquee-track:hover {
-          animation-play-state: paused;
-        }
+        .gd-marquee-track:hover { animation-play-state: paused; }
         .gd-ping { animation: gd-ping 1.5s cubic-bezier(0,0,0.2,1) infinite; }
       `}</style>
 
@@ -230,13 +207,19 @@ function CompanySocialFeed({ onNavigate }: { onNavigate: (id: string) => void })
           <h2 style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
             Company Feed
           </h2>
-          <span style={{ position: 'relative', display: 'inline-flex', width: '8px', height: '8px' }}>
-            <span className="gd-ping" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'var(--accent)', opacity: 0.5 }} />
-            <span style={{ position: 'relative', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent)', display: 'inline-flex' }} />
-          </span>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-            {posts.length} updates from tracked grocers
-          </span>
+          {isLoading ? (
+            <Loader2 size={12} className="animate-spin" style={{ color: 'var(--accent)' }} />
+          ) : posts.length > 0 ? (
+            <>
+              <span style={{ position: 'relative', display: 'inline-flex', width: '8px', height: '8px' }}>
+                <span className="gd-ping" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'var(--accent)', opacity: 0.5 }} />
+                <span style={{ position: 'relative', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent)', display: 'inline-flex' }} />
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                {posts.length} updates from tracked grocers
+              </span>
+            </>
+          ) : null}
         </div>
         <button
           onClick={() => onNavigate('companies')}
@@ -248,132 +231,135 @@ function CompanySocialFeed({ onNavigate }: { onNavigate: (id: string) => void })
         </button>
       </div>
 
-      {/* Scrolling strip */}
-      <div style={{ overflow: 'hidden', position: 'relative' }}>
-        {/* Fade edges */}
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '60px', background: 'linear-gradient(to right, var(--background), transparent)', zIndex: 1, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '60px', background: 'linear-gradient(to left, var(--background), transparent)', zIndex: 1, pointerEvents: 'none' }} />
-
-        <div className="gd-marquee-track" style={{ display: 'flex', gap: '12px', width: 'max-content' }}>
-          {doubled.map((post, i) => (
-            <SocialPostCard key={`${post.id}-${i}`} post={post} />
-          ))}
+      {isLoading ? (
+        <div className="rounded-2xl p-8 flex items-center justify-center gap-3"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <Loader2 size={18} className="animate-spin" style={{ color: 'var(--accent)' }} />
+          <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>Loading company updates…</span>
         </div>
-      </div>
+      ) : posts.length === 0 ? (
+        <div className="rounded-2xl p-8 flex flex-col items-center justify-center gap-3 text-center"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <Building2 size={24} style={{ color: 'var(--text-secondary)', opacity: 0.4 }} />
+          <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>No company data yet.</p>
+          <button onClick={() => onNavigate('companies')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold"
+            style={{ background: 'var(--accent)', color: 'white' }}>
+            <RefreshCw size={13} /> Go to Companies
+          </button>
+        </div>
+      ) : (
+        <div style={{ overflow: 'hidden', position: 'relative' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '60px', background: 'linear-gradient(to right, var(--background), transparent)', zIndex: 1, pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '60px', background: 'linear-gradient(to left, var(--background), transparent)', zIndex: 1, pointerEvents: 'none' }} />
+          <div className="gd-marquee-track" style={{ display: 'flex', gap: '12px', width: 'max-content' }}>
+            {doubled.map((post, i) => (
+              <SocialPostCard key={`${post.id}-${i}`} post={post} fetchedAt={fetchedAt} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Count-up hook ────────────────────────────────────────────────────────────
+// ─── Daily Summary Thumbnail ──────────────────────────────────────────────────
 
-function useCountUp(target: number, active: boolean, duration = 1300, decimals = 0) {
-  const [count, setCount] = useState(0);
-  const raf = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!active) return;
-    let startTs: number | null = null;
-
-    const step = (ts: number) => {
-      if (!startTs) startTs = ts;
-      const progress = Math.min((ts - startTs) / duration, 1);
-      // easeOutQuart
-      const eased = 1 - Math.pow(1 - progress, 4);
-      setCount(parseFloat((eased * target).toFixed(decimals)));
-      if (progress < 1) raf.current = requestAnimationFrame(step);
-    };
-
-    raf.current = requestAnimationFrame(step);
-    return () => { if (raf.current) cancelAnimationFrame(raf.current); };
-  }, [active, target, duration, decimals]);
-
-  return count;
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/^#+\s+/gm, '')
+    .replace(/^\-\s+/gm, '')
+    .replace(/\n+/g, ' ')
+    .trim();
 }
 
-// ─── Stat Tile ────────────────────────────────────────────────────────────────
+function HomeDailySummary({ onNavigate }: { onNavigate: (id: string) => void }) {
+  const { today, archive, isGenerating } = useDailySummary();
 
-function StatTile({
-  prefix, numeric, suffix, decimals, label, color, trend, index, sourceUrl,
-}: { prefix: string; numeric: number; suffix: string; decimals: number; label: string; color: string; trend: string; index: number; sourceUrl?: string }) {
-  const [visible, setVisible] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const count = useCountUp(numeric, visible, 1300, decimals);
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), index * 80);
-    return () => clearTimeout(t);
-  }, [index]);
-
-  const display = `${prefix}${count}${suffix}`;
+  const entry: DailySummaryEntry | null = today ?? (archive.length > 0 ? archive[0] : null);
+  const excerpt = entry ? stripMarkdown(entry.summary).slice(0, 50).trimEnd() + '…' : '';
+  const accent = 'var(--accent)';
 
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(14px)',
-        transition: 'opacity 0.45s ease, transform 0.45s ease, box-shadow 0.2s ease, border-color 0.2s ease',
-        background: hovered ? `linear-gradient(135deg, var(--surface) 60%, ${color}0d)` : 'var(--surface)',
-        border: `1px solid ${hovered ? color + '40' : 'var(--border)'}`,
-        boxShadow: hovered ? `0 6px 24px ${color}18` : 'none',
-        borderRadius: '16px',
-        padding: '20px',
-        display: 'flex',
-        flexDirection: 'column' as const,
-        gap: '10px',
-        position: 'relative' as const,
-        overflow: 'hidden',
-      }}
-    >
-      {/* Colored top accent bar */}
-      <div style={{
-        position: 'absolute',
-        top: 0, left: 0, right: 0,
-        height: '3px',
-        background: color,
-        opacity: hovered ? 1 : 0.5,
-        transition: 'opacity 0.2s ease',
-        borderRadius: '16px 16px 0 0',
-      }} />
-
-      {/* Animated number */}
-      <div style={{
-        fontSize: '30px',
-        fontWeight: 800,
-        lineHeight: 1,
-        color,
-        letterSpacing: '-0.5px',
-        fontVariantNumeric: 'tabular-nums',
-      }}>
-        {display}
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[13px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
+            Daily Summary
+          </h2>
+          {isGenerating && <Loader2 size={11} className="animate-spin" style={{ color: accent }} />}
+        </div>
+        <button
+          onClick={() => onNavigate('daily-summary')}
+          className="flex items-center gap-1.5 text-[12px] font-semibold transition-opacity hover:opacity-70"
+          style={{ color: accent }}
+        >
+          View all <ArrowRight size={12} />
+        </button>
       </div>
 
-      {/* Label */}
-      <p style={{ fontSize: '12px', lineHeight: 1.4, color: 'var(--text-primary)', flex: 1 }}>
-        {label}
-      </p>
+      <div
+        className="rounded-2xl p-5 flex flex-col gap-3 cursor-pointer group transition-all duration-150 relative overflow-hidden"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        onClick={() => onNavigate('daily-summary')}
+        onMouseEnter={e => {
+          const el = e.currentTarget as HTMLDivElement;
+          el.style.borderColor = '#00AA5050';
+          el.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
+          el.style.transform = 'translateY(-2px)';
+        }}
+        onMouseLeave={e => {
+          const el = e.currentTarget as HTMLDivElement;
+          el.style.borderColor = 'var(--border)';
+          el.style.boxShadow = 'none';
+          el.style.transform = 'translateY(0)';
+        }}
+      >
+        {/* Top accent bar */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--accent)', opacity: 0.7, borderRadius: '16px 16px 0 0' }} />
 
-      {/* Trend badge + source link */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '5px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <TrendingUp size={10} style={{ color, opacity: 0.7 }} />
-          <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            {trend}
-          </span>
-        </div>
-        {sourceUrl && (
-          <a
-            href={sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            style={{ fontSize: '10px', fontWeight: 600, color, opacity: 0.7, textDecoration: 'none', whiteSpace: 'nowrap' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.7'; }}
-          >
-            Source ↗
-          </a>
+        {isGenerating && !entry ? (
+          <div className="flex items-center gap-2.5 py-2">
+            <Loader2 size={15} className="animate-spin" style={{ color: accent }} />
+            <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>Generating today&rsquo;s summary&hellip;</span>
+          </div>
+        ) : !entry ? (
+          <div className="flex items-center gap-2.5 py-2">
+            <NewsletterIcon size={15} style={{ color: 'var(--text-secondary)', opacity: 0.35 }} />
+            <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>Today&rsquo;s summary will appear here at 11 AM.</span>
+          </div>
+        ) : (
+          <>
+            {/* Header row */}
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(0,170,80,0.12)', color: accent }}>
+                Daily Brief
+              </span>
+              <span className="text-[11px] font-medium" style={{ color: accent }}>
+                {new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+
+            {/* Excerpt */}
+            <p className="text-[13px] leading-relaxed line-clamp-1" style={{ color: 'var(--text-primary)' }}>
+              {excerpt}
+            </p>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between mt-auto pt-1">
+              {entry.sources?.length > 0 && (
+                <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  {entry.sources.length} sources
+                </span>
+              )}
+              <div className="flex items-center gap-1 text-[11px] font-semibold ml-auto opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: accent }}>
+                Read full brief <ArrowRight size={11} />
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -392,6 +378,19 @@ function timeAgo(iso: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function formatDate(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  if (isToday) return d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  return d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric',
+    ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+  });
 }
 
 function faviconUrl(domain: string) {
@@ -442,7 +441,7 @@ function useLatestSignals(): { signals: FeedItem[]; fetchedAt: string | null } {
 
 function SignalCard({ item, onNavigate }: { item: FeedItem; onNavigate: (id: string) => void }) {
   const color = PILLAR_COLORS[item.pillar] || '#00AA50';
-  const age = timeAgo(item.publishedAt);
+  const date = formatDate(item.publishedAt);
 
   return (
     <div
@@ -465,9 +464,9 @@ function SignalCard({ item, onNavigate }: { item: FeedItem; onNavigate: (id: str
         <span className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: `${color}15`, color }}>
           {item.pillar}
         </span>
-        {age && (
+        {date && (
           <span className="text-[11px] font-medium" style={{ color }}>
-            {age}
+            {date}
           </span>
         )}
       </div>
@@ -678,20 +677,8 @@ export default function InsightsHome({ onNavigate }: InsightsHomeProps) {
         {/* ── What do you want to do today? ───────────────────────────────── */}
         <TodaySection onNavigate={handleNavigate} />
 
-        {/* ── Industry Benchmarks ─────────────────────────────────────────── */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[13px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
-              Industry Benchmarks
-            </h2>
-            <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-secondary)', opacity: 0.6 }}>
-              Source: Grocery Doppio
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {STATS.map((s, i) => <StatTile key={i} {...s} index={i} />)}
-          </div>
-        </div>
+        {/* ── Daily Summary ────────────────────────────────────────────────── */}
+        <HomeDailySummary onNavigate={handleNavigate} />
 
         {/* ── Company Social Feed ─────────────────────────────────────────── */}
         <CompanySocialFeed onNavigate={onNavigate} />

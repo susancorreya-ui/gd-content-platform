@@ -72,7 +72,36 @@ export function useDailySummary(): UseDailySummaryReturn {
     const pastEntries = allEntries.filter(e => e.date !== todayKey);
     setToday(todayEntry);
     setArchive(pastEntries);
-  }, []);
+
+    if (todayEntry) return; // Already have today's summary in local cache
+
+    // Fetch from server — if the cron already ran at 11 AM this returns instantly from cache;
+    // otherwise the server generates once and caches it for all subsequent clients.
+    setIsGenerating(true);
+    setError(null);
+    (async () => {
+      try {
+        const res = await fetch(`/api/daily-summary?date=${todayKey}`);
+        if (res.ok) {
+          const entry: DailySummaryEntry = await res.json();
+          if (entry && entry.summary) {
+            const existing = loadArchive().filter(e => e.date !== todayKey);
+            const updated = [entry, ...existing];
+            saveArchive(updated);
+            setToday(entry);
+            setArchive(updated.filter(e => e.date !== todayKey));
+            setIsGenerating(false);
+            return;
+          }
+        }
+        throw new Error('Server summary unavailable');
+      } catch {
+        // Fallback: generate directly from the client
+        setIsGenerating(false);
+        generate();
+      }
+    })();
+  }, [generate]);
 
   return { today, archive, isGenerating, error, regenerate: generate };
 }
